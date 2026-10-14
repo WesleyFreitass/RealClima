@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "postinstall": "node scripts/patch-capgo.js",
+    "postinstall": "node -e \"import('node:fs').then(fs => { if (fs.existsSync('./scripts/patch-capgo.js')) import('./scripts/patch-capgo.js'); });\"",
     "android:sync": "npm run build && npx cap sync android",
     "android:open": "npx cap open android"
   },

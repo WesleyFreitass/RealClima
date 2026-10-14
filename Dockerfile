@@ -1,9 +1,10 @@
 # Multi-stage build para SPA React + Vite
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
 COPY package*.json ./
+COPY scripts ./scripts
 RUN npm ci || npm install
 
 COPY . .
