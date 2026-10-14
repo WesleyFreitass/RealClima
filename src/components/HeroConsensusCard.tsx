@@ -3,8 +3,6 @@ import {
   MapPin,
   ShieldCheck,
   AlertTriangle,
-  Layers,
-  Thermometer,
   CloudRain,
   Clock,
 } from 'lucide-react';
@@ -23,14 +21,11 @@ export const HeroConsensusCard: React.FC<HeroConsensusCardProps> = ({
   const {
     location,
     consensusTemp,
-    medianTemp,
     feelsLike,
-    divergence,
     confidenceLevel,
     confidenceText,
     consensusRainProb,
     consensusWeatherCode,
-    models,
     timestamp,
   } = data;
 
@@ -78,7 +73,6 @@ export const HeroConsensusCard: React.FC<HeroConsensusCardProps> = ({
   }[confidenceLevel];
 
   const ConfidenceIcon = confidenceStyles.icon;
-  const activeModelsCount = models.filter((m) => m.status === 'online').length;
 
   return (
     <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl living-glass p-4 sm:p-7 md:p-10 border border-white/20 shadow-2xl">
@@ -139,72 +133,35 @@ export const HeroConsensusCard: React.FC<HeroConsensusCardProps> = ({
               <ConfidenceIcon className="w-4 h-4" />
               <span>{confidenceText}</span>
             </div>
-            <span className="text-xs text-slate-300 hidden sm:inline">
-              Supercomputadores: ECMWF, GFS, ICON, GEM
-            </span>
           </div>
         </div>
 
-        {/* Right Side: Key Ensemble Analytics Cards (Living Glass Slabs) */}
-        <div className="grid grid-cols-2 gap-2.5 sm:gap-3 w-full lg:w-auto lg:min-w-[320px]">
-          {/* Models in Agreement */}
-          <div className="living-glass-card p-3 sm:p-3.5 rounded-xl sm:rounded-2xl">
-            <div className="flex items-center gap-2 text-xs text-slate-300 mb-1">
-              <Layers className="w-3.5 h-3.5 text-cyan-300" />
-              <span className="font-semibold">Modelos Ativos</span>
+        {/* Right Side: Chuva (Consenso) Highlight Card */}
+        <div className="w-full lg:w-auto lg:min-w-[260px] shrink-0">
+          <div className="living-glass-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-cyan-400/35 shadow-xl flex flex-row lg:flex-col items-center lg:items-start justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 sm:p-3 rounded-2xl bg-cyan-400/15 border border-cyan-400/30">
+                <CloudRain className="w-6 h-6 sm:w-7 sm:h-7 text-cyan-300" />
+              </div>
+              <div>
+                <span className="text-xs sm:text-sm font-bold text-cyan-300 uppercase tracking-wider block">
+                  Chuva (Consenso)
+                </span>
+                <p className="text-xs text-slate-300">
+                  {consensusRainProb > 60
+                    ? 'Alta probabilidade'
+                    : consensusRainProb > 20
+                    ? 'Chance moderada'
+                    : 'Baixa chance'}
+                </p>
+              </div>
             </div>
-            <div className="text-xl font-black text-white">
-              {activeModelsCount} fontes
-            </div>
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              ECMWF, GFS, ICON, GEM...
-            </p>
-          </div>
 
-          {/* Inter-Model Divergence */}
-          <div className="living-glass-card p-3.5 rounded-2xl">
-            <div className="flex items-center gap-2 text-xs text-slate-300 mb-1">
-              <Thermometer className="w-3.5 h-3.5 text-purple-300" />
-              <span className="font-semibold">Dispersão (σ)</span>
+            <div className="text-right lg:text-left mt-0 lg:mt-3">
+              <span className="text-4xl sm:text-5xl font-black text-white tracking-tight">
+                {consensusRainProb}%
+              </span>
             </div>
-            <div className="text-xl font-black text-white">
-              ±{divergence.toFixed(1)}°C
-            </div>
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              {divergence <= 0.8 ? 'Quase nula' : divergence <= 1.8 ? 'Variação normal' : 'Divergência alta'}
-            </p>
-          </div>
-
-          {/* Median Temp */}
-          <div className="living-glass-card p-3.5 rounded-2xl">
-            <div className="flex items-center gap-2 text-xs text-slate-300 mb-1">
-              <Thermometer className="w-3.5 h-3.5 text-amber-300" />
-              <span className="font-semibold">Mediana</span>
-            </div>
-            <div className="text-xl font-black text-white">
-              {displayTemp(medianTemp)}
-            </div>
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              Filtro estatístico
-            </p>
-          </div>
-
-          {/* Rain Probability Consensus */}
-          <div className="living-glass-card p-3.5 rounded-2xl border-cyan-400/30">
-            <div className="flex items-center gap-2 text-xs text-cyan-300 mb-1">
-              <CloudRain className="w-3.5 h-3.5 text-cyan-300" />
-              <span className="font-semibold">Chuva (Consenso)</span>
-            </div>
-            <div className="text-xl font-black text-white">
-              {consensusRainProb}%
-            </div>
-            <p className="text-[11px] text-cyan-200/80 mt-0.5">
-              {consensusRainProb > 60
-                ? 'Alta chance de chuva'
-                : consensusRainProb > 20
-                ? 'Chance moderada'
-                : 'Baixa chance'}
-            </p>
           </div>
         </div>
       </div>

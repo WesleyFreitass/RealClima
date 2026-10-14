@@ -98,6 +98,7 @@ export interface ConsensusData {
   consensusCondition: string;
   consensusWeatherCode: number;
   models: ModelSource[];
+  alerts?: WeatherAlert[];
   hourlyConsensus: Array<{
     time: string;
     displayHour: string;
@@ -106,6 +107,18 @@ export interface ConsensusData {
     modelTemps: Record<string, number>;
   }>;
   dailyForecast: DayForecast[];
+}
+
+export type AlertSeverity = 'yellow' | 'orange' | 'red';
+
+export interface WeatherAlert {
+  id: string;
+  title: string;
+  severity: AlertSeverity;
+  description: string;
+  instruction: string;
+  category: 'rain' | 'wind' | 'temp' | 'storm' | 'uv' | 'air';
+  effectiveUntil?: string;
 }
 
 export interface AppSettings {

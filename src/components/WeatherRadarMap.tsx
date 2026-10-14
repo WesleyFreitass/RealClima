@@ -13,6 +13,8 @@ import {
   Minimize2,
   ZoomIn,
   ZoomOut,
+  CloudRain,
+  Cloud,
 } from 'lucide-react';
 import type { LocationData } from '../types/weather';
 
@@ -35,7 +37,9 @@ export const WeatherRadarMap: React.FC<WeatherRadarMapProps> = ({
   const radarLayerRef = useRef<L.TileLayer | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
 
-  const [frames, setFrames] = useState<RadarFrame[]>([]);
+  const [activeLayerType, setActiveLayerType] = useState<'radar' | 'satellite'>('radar');
+  const [radarFrames, setRadarFrames] = useState<RadarFrame[]>([]);
+  const [satelliteFrames, setSatelliteFrames] = useState<RadarFrame[]>([]);
   const [host, setHost] = useState<string>('https://tilecache.rainviewer.com');
   const [currentFrameIdx, setCurrentFrameIdx] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -43,18 +47,22 @@ export const WeatherRadarMap: React.FC<WeatherRadarMapProps> = ({
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [isLoadingRadar, setIsLoadingRadar] = useState<boolean>(true);
 
+  const activeFrames = activeLayerType === 'radar' ? radarFrames : satelliteFrames;
+
   // 1. Initialize Leaflet Map
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
     if (!mapInstanceRef.current) {
+      const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
       const map = L.map(mapContainerRef.current, {
         center: [location.lat, location.lon],
-        zoom: 8,
+        zoom: 7,
         minZoom: 3,
-        maxZoom: 18,
+        maxZoom: 16,
         zoomControl: false,
-        scrollWheelZoom: true,
+        scrollWheelZoom: !isMobile,
+        dragging: !isMobile,
       });
 
       // Global OpenStreetMap with Dark Theme (Full street-level zoom, 0 watermark)
@@ -91,16 +99,12 @@ export const WeatherRadarMap: React.FC<WeatherRadarMapProps> = ({
       markerRef.current = marker;
       mapInstanceRef.current = map;
     }
-
-    return () => {
-      // Don't destroy immediately on re-renders, wait for unmount
-    };
   }, []);
 
   // 2. Update map center and marker when location changes
   useEffect(() => {
     if (mapInstanceRef.current) {
-      mapInstanceRef.current.setView([location.lat, location.lon], 8, {
+      mapInstanceRef.current.setView([location.lat, location.lon], 7, {
         animate: true,
       });
       if (markerRef.current) {
@@ -115,7 +119,7 @@ export const WeatherRadarMap: React.FC<WeatherRadarMapProps> = ({
     }
   }, [location, temp]);
 
-  // 3. Fetch RainViewer timestamps
+  // 3. Fetch RainViewer timestamps (both Radar and Satellite infrared)
   useEffect(() => {
     let isMounted = true;
     setIsLoadingRadar(true);
@@ -125,10 +129,16 @@ export const WeatherRadarMap: React.FC<WeatherRadarMapProps> = ({
       .then((d) => {
         if (!isMounted) return;
         if (d.host) setHost(d.host);
-        const pastFrames: RadarFrame[] = d.radar?.past || [];
-        setFrames(pastFrames);
-        if (pastFrames.length > 0) {
-          setCurrentFrameIdx(pastFrames.length - 1); // Latest frame
+
+        const pastRadar: RadarFrame[] = d.radar?.past || [];
+        const pastSat: RadarFrame[] = d.satellite?.infrared || [];
+
+        setRadarFrames(pastRadar);
+        setSatelliteFrames(pastSat);
+
+        const currentList = activeLayerType === 'radar' ? pastRadar : pastSat;
+        if (currentList.length > 0) {
+          setCurrentFrameIdx(currentList.length - 1);
         }
         setIsLoadingRadar(false);
       })
@@ -142,53 +152,63 @@ export const WeatherRadarMap: React.FC<WeatherRadarMapProps> = ({
     };
   }, []);
 
-  // 4. Update Radar Tile Layer when frame or opacity changes
-  const updateRadarLayer = useCallback(
-    (frameIdx: number) => {
-      if (!mapInstanceRef.current || frames.length === 0) return;
+  // Switch frame index when active layer changes
+  useEffect(() => {
+    const list = activeLayerType === 'radar' ? radarFrames : satelliteFrames;
+    if (list.length > 0) {
+      setCurrentFrameIdx(list.length - 1);
+    }
+  }, [activeLayerType, radarFrames, satelliteFrames]);
 
-      const frame = frames[frameIdx];
+  // 4. Update Radar / Satellite Tile Layer
+  const updateWeatherTileLayer = useCallback(
+    (frameIdx: number) => {
+      if (!mapInstanceRef.current || activeFrames.length === 0) return;
+
+      const frame = activeFrames[frameIdx];
       if (!frame) return;
 
-      const tileUrl = `${host}${frame.path}/256/{z}/{x}/{y}/2/1_1.png`;
+      // Color palette 2 for radar, 0 for satellite
+      const colorOption = activeLayerType === 'radar' ? '2/1_1' : '0/0_0';
+      const tileUrl = `${host}${frame.path}/256/{z}/{x}/{y}/${colorOption}.png`;
 
       if (radarLayerRef.current) {
         mapInstanceRef.current.removeLayer(radarLayerRef.current);
       }
 
-      const newRadarLayer = L.tileLayer(tileUrl, {
+      const newLayer = L.tileLayer(tileUrl, {
         opacity: opacity,
         zIndex: 50,
-        maxNativeZoom: 12,
-        maxZoom: 18,
+        maxNativeZoom: 7,
+        maxZoom: 16,
       }).addTo(mapInstanceRef.current);
 
-      radarLayerRef.current = newRadarLayer;
+      radarLayerRef.current = newLayer;
     },
-    [frames, host, opacity]
+    [activeFrames, host, opacity, activeLayerType]
   );
 
   useEffect(() => {
-    if (frames.length > 0) {
-      updateRadarLayer(currentFrameIdx);
+    if (activeFrames.length > 0) {
+      updateWeatherTileLayer(currentFrameIdx);
     }
-  }, [currentFrameIdx, opacity, updateRadarLayer, frames]);
+  }, [currentFrameIdx, opacity, updateWeatherTileLayer, activeFrames]);
 
   // 5. Animation Loop
   useEffect(() => {
-    if (!isPlaying || frames.length === 0) return;
+    if (!isPlaying || activeFrames.length === 0) return;
 
     const interval = setInterval(() => {
-      setCurrentFrameIdx((prev) => (prev + 1) % frames.length);
+      setCurrentFrameIdx((prev) => (prev + 1) % activeFrames.length);
     }, 700);
 
     return () => clearInterval(interval);
-  }, [isPlaying, frames.length]);
+  }, [isPlaying, activeFrames.length]);
 
   // Recenter and Zoom helpers
   const handleRecenter = () => {
     if (mapInstanceRef.current) {
-      mapInstanceRef.current.setView([location.lat, location.lon], 9, {
+      mapInstanceRef.current.setView([location.lat, location.lon], 8, {
         animate: true,
       });
     }
@@ -204,9 +224,9 @@ export const WeatherRadarMap: React.FC<WeatherRadarMapProps> = ({
 
   // Format frame timestamp
   const getFrameTimeLabel = (idx: number) => {
-    const f = frames[idx];
+    const f = activeFrames[idx];
     if (!f) return 'Carregando...';
-    const isLatest = idx === frames.length - 1;
+    const isLatest = idx === activeFrames.length - 1;
     const date = new Date(f.time * 1000);
     const timeStr = date.toLocaleTimeString('pt-BR', {
       hour: '2-digit',
@@ -217,68 +237,97 @@ export const WeatherRadarMap: React.FC<WeatherRadarMapProps> = ({
 
   return (
     <div
-      className={`glass-panel rounded-3xl overflow-hidden transition-all duration-300 border border-cyan-500/20 flex flex-col ${
+      className={`living-glass rounded-2xl sm:rounded-3xl overflow-hidden transition-all duration-300 border border-white/20 shadow-2xl flex flex-col ${
         isFullscreen
           ? 'fixed inset-4 z-50 shadow-2xl backdrop-blur-3xl'
-          : 'relative min-h-[480px]'
+          : 'relative min-h-[500px]'
       }`}
     >
       {/* Header Bar */}
-      <div className="p-4 sm:p-5 flex items-center justify-between border-b border-white/10 bg-slate-900/80 backdrop-blur-md">
+      <div className="p-3.5 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 bg-slate-900/80 backdrop-blur-md">
         <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+          <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shrink-0">
             <Layers className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="font-bold text-white text-base">
-                Radar de Precipitação e Chuva ao Vivo
+              <h3 className="font-bold text-white text-sm sm:text-base">
+                Radar Meteorológico ao Vivo
               </h3>
               <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                Satélite em Tempo Real
+                Tempo Real
               </span>
             </div>
             <p className="text-xs text-slate-400">
-              Imagens de radar meteorológico global (RainViewer / Satélite ao Vivo)
+              Imagens de radar e satélite global em tempo real (RainViewer / Doppler)
             </p>
           </div>
         </div>
 
-        {/* Header Right Actions with Zoom Controls */}
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={handleZoomIn}
-            title="Aproximar zoom (+)"
-            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-white/5 transition-colors"
-          >
-            <ZoomIn className="w-4 h-4" />
-          </button>
-          <button
-            onClick={handleZoomOut}
-            title="Afastar zoom (-)"
-            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-white/5 transition-colors"
-          >
-            <ZoomOut className="w-4 h-4" />
-          </button>
-          <button
-            onClick={handleRecenter}
-            title="Recentrar na cidade selecionada"
-            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-white/5 transition-colors"
-          >
-            <Crosshair className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setIsFullscreen(!isFullscreen)}
-            title={isFullscreen ? 'Minimizar' : 'Tela cheia'}
-            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-white/5 transition-colors"
-          >
-            {isFullscreen ? (
-              <Minimize2 className="w-4 h-4" />
-            ) : (
-              <Maximize2 className="w-4 h-4" />
-            )}
-          </button>
+        {/* Layer Selector & Controls */}
+        <div className="flex items-center justify-between sm:justify-end gap-2 flex-wrap">
+          {/* Layer switcher: Chuva vs Nuvens */}
+          <div className="flex items-center bg-slate-950/80 p-1 rounded-xl border border-white/15 text-xs shadow-inner">
+            <button
+              onClick={() => setActiveLayerType('radar')}
+              className={`px-2.5 py-1 rounded-lg font-bold flex items-center gap-1.5 transition-all ${
+                activeLayerType === 'radar'
+                  ? 'bg-cyan-400 text-slate-950 shadow'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              <CloudRain className="w-3.5 h-3.5" />
+              <span>Chuva (Radar)</span>
+            </button>
+            <button
+              onClick={() => setActiveLayerType('satellite')}
+              className={`px-2.5 py-1 rounded-lg font-bold flex items-center gap-1.5 transition-all ${
+                activeLayerType === 'satellite'
+                  ? 'bg-cyan-400 text-slate-950 shadow'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              <Cloud className="w-3.5 h-3.5" />
+              <span>Nuvens (Satélite)</span>
+            </button>
+          </div>
+
+          {/* Zoom and Fullscreen Controls */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleZoomIn}
+              title="Aproximar zoom (+)"
+              className="p-1.5 sm:p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-white/5 transition-colors"
+            >
+              <ZoomIn className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleZoomOut}
+              title="Afastar zoom (-)"
+              className="p-1.5 sm:p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-white/5 transition-colors"
+            >
+              <ZoomOut className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleRecenter}
+              title="Recentrar na cidade"
+              className="p-1.5 sm:p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-white/5 transition-colors"
+            >
+              <Crosshair className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setIsFullscreen(!isFullscreen)}
+              title={isFullscreen ? 'Minimizar' : 'Tela cheia'}
+              className="p-1.5 sm:p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-white/5 transition-colors"
+            >
+              {isFullscreen ? (
+                <Minimize2 className="w-4 h-4" />
+              ) : (
+                <Maximize2 className="w-4 h-4" />
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -288,7 +337,7 @@ export const WeatherRadarMap: React.FC<WeatherRadarMapProps> = ({
 
         {/* Radar Loading Indicator */}
         {isLoadingRadar && (
-          <div className="absolute top-4 left-4 z-20 px-3 py-1.5 rounded-xl bg-slate-900/90 border border-cyan-500/30 text-xs text-cyan-300 shadow-xl flex items-center gap-2">
+          <div className="absolute top-4 left-4 z-20 px-3 py-1.5 rounded-xl bg-slate-900/95 border border-cyan-500/30 text-xs text-cyan-300 shadow-xl flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
             Sincronizando varredura de radar...
           </div>
@@ -297,15 +346,21 @@ export const WeatherRadarMap: React.FC<WeatherRadarMapProps> = ({
         {/* Legend on Bottom Right */}
         <div className="absolute bottom-4 right-4 z-20 p-2.5 rounded-xl bg-slate-900/90 backdrop-blur-xl border border-white/10 text-[10px] space-y-1.5 shadow-xl hidden sm:block">
           <span className="font-semibold text-slate-300 block text-[11px]">
-            Intensidade da Chuva
+            {activeLayerType === 'radar' ? 'Intensidade da Chuva' : 'Cobertura de Nuvens'}
           </span>
           <div className="flex items-center gap-1.5">
-            <div className="w-32 h-2 rounded-full bg-gradient-to-r from-blue-500 via-emerald-400 via-amber-400 to-rose-600" />
+            <div
+              className={`w-32 h-2 rounded-full ${
+                activeLayerType === 'radar'
+                  ? 'bg-gradient-to-r from-blue-500 via-emerald-400 via-amber-400 to-rose-600'
+                  : 'bg-gradient-to-r from-slate-700 via-slate-400 to-white'
+              }`}
+            />
           </div>
           <div className="flex justify-between text-slate-400 text-[9px]">
-            <span>Leve</span>
-            <span>Moderada</span>
-            <span>Tempestade</span>
+            <span>{activeLayerType === 'radar' ? 'Leve' : 'Rala'}</span>
+            <span>{activeLayerType === 'radar' ? 'Moderada' : 'Média'}</span>
+            <span>{activeLayerType === 'radar' ? 'Tempestade' : 'Densa'}</span>
           </div>
         </div>
 
@@ -318,21 +373,23 @@ export const WeatherRadarMap: React.FC<WeatherRadarMapProps> = ({
       </div>
 
       {/* Interactive Controls Bar */}
-      <div className="p-3 sm:p-4 bg-slate-900/95 backdrop-blur-md border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div className="p-3 sm:p-4 bg-slate-900/90 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
         {/* Playback Controls */}
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
           <button
             onClick={() => setIsPlaying(!isPlaying)}
-            disabled={frames.length === 0}
-            className="px-3.5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-md shadow-cyan-500/20 shrink-0"
+            disabled={activeFrames.length === 0}
+            className="px-3.5 py-1.5 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold flex items-center gap-1.5 transition-all shadow-md active:scale-95 disabled:opacity-50"
           >
             {isPlaying ? (
               <>
-                <Pause className="w-3.5 h-3.5 fill-current" /> Pausar
+                <Pause className="w-3.5 h-3.5 fill-slate-950" />
+                <span>Pausar</span>
               </>
             ) : (
               <>
-                <Play className="w-3.5 h-3.5 fill-current" /> Animar Radar
+                <Play className="w-3.5 h-3.5 fill-slate-950" />
+                <span>Animar</span>
               </>
             )}
           </button>
@@ -340,53 +397,52 @@ export const WeatherRadarMap: React.FC<WeatherRadarMapProps> = ({
           <button
             onClick={() => {
               setIsPlaying(false);
-              if (frames.length > 0) setCurrentFrameIdx(frames.length - 1);
+              if (activeFrames.length > 0) {
+                setCurrentFrameIdx(activeFrames.length - 1);
+              }
             }}
-            title="Ir para o momento atual"
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition-colors"
+            title="Voltar ao tempo real"
+            className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <RotateCcw className="w-4 h-4" />
           </button>
 
-          {/* Time Badge */}
-          <div className="px-3 py-1.5 rounded-xl bg-slate-950 border border-white/10 text-xs text-cyan-300 font-mono font-medium">
+          <div className="font-mono text-cyan-300 bg-slate-950 px-2.5 py-1 rounded-lg border border-white/5 font-semibold">
             {getFrameTimeLabel(currentFrameIdx)}
           </div>
         </div>
 
-        {/* Frame Progress Slider */}
-        {frames.length > 0 && (
-          <div className="flex items-center gap-2 w-full sm:w-64">
-            <input
-              type="range"
-              min="0"
-              max={frames.length - 1}
-              value={currentFrameIdx}
-              onChange={(e) => {
-                setIsPlaying(false);
-                setCurrentFrameIdx(parseInt(e.target.value, 10));
-              }}
-              className="w-full accent-cyan-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
-            />
-          </div>
-        )}
-
-        {/* Opacity Control */}
-        <div className="flex items-center gap-2 text-xs text-slate-400 w-full sm:w-auto justify-end">
-          <Sliders className="w-3.5 h-3.5 text-slate-400" />
-          <span className="text-[11px]">Opacidade:</span>
+        {/* Timeline Slider */}
+        <div className="flex items-center gap-2 flex-1 max-w-md w-full">
+          <span className="text-[10px] text-slate-400 font-mono">Passado</span>
           <input
             type="range"
-            min="0.2"
-            max="1.0"
-            step="0.05"
+            min={0}
+            max={Math.max(0, activeFrames.length - 1)}
+            value={currentFrameIdx}
+            onChange={(e) => {
+              setIsPlaying(false);
+              setCurrentFrameIdx(Number(e.target.value));
+            }}
+            disabled={activeFrames.length === 0}
+            className="flex-1 accent-cyan-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
+          />
+          <span className="text-[10px] text-cyan-400 font-mono font-bold">Agora</span>
+        </div>
+
+        {/* Opacity Slider */}
+        <div className="flex items-center gap-2 shrink-0">
+          <Sliders className="w-3.5 h-3.5 text-slate-400" />
+          <span className="text-[11px] text-slate-400">Opacidade:</span>
+          <input
+            type="range"
+            min={0.2}
+            max={1.0}
+            step={0.05}
             value={opacity}
             onChange={(e) => setOpacity(parseFloat(e.target.value))}
-            className="w-20 accent-cyan-400 h-1 bg-slate-800 rounded-lg cursor-pointer"
+            className="w-16 sm:w-20 accent-cyan-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
           />
-          <span className="text-[11px] font-mono text-slate-300">
-            {Math.round(opacity * 100)}%
-          </span>
         </div>
       </div>
     </div>

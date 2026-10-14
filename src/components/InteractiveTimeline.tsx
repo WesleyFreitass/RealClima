@@ -147,9 +147,15 @@ export const InteractiveTimeline: React.FC<InteractiveTimelineProps> = ({
     }
   };
 
-  // 12 columns: sample every 2 hours (00, 02, 04, ... 22)
+  // 12 columns: sample every 2 hours (00, 02, 04, ... 22) or 4 hours immediate window
   const hourlyPoints: HourlyDataPoint[] = useMemo(() => {
     if (!selectedDay?.hourly) return [];
+    if (activeMetric === 'precipitation' && precipRange === '4h') {
+      const isToday = selectedDay.dayLabel === 'Hoje';
+      const nowH = new Date().getHours();
+      const startH = isToday ? Math.min(19, nowH) : 12;
+      return selectedDay.hourly.slice(startH, startH + 5);
+    }
     const pts: HourlyDataPoint[] = [];
     for (let i = 0; i < 24; i += 2) {
       if (selectedDay.hourly[i]) {
@@ -157,7 +163,7 @@ export const InteractiveTimeline: React.FC<InteractiveTimelineProps> = ({
       }
     }
     return pts;
-  }, [selectedDay]);
+  }, [selectedDay, activeMetric, precipRange]);
 
   // Agrupamento de horas chuvosas adjacentes (> 30%) em blocos contínuos unificados
   const rainIntervals = useMemo(() => {

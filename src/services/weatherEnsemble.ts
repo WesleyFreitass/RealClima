@@ -9,6 +9,7 @@ import type {
 } from '../types/weather';
 import { SYSTEM_OPENWEATHER_KEY } from '../types/weather';
 import { getWeatherMeta, degreesToCompass } from '../utils/weatherCodes';
+import { detectWeatherAlerts } from '../utils/weatherAlerts';
 
 interface FetchEnsembleParams {
   location: LocationData;
@@ -648,6 +649,14 @@ export async function fetchWeatherEnsemble({
     consensusWeatherCode = 2; // Parcialmente nublado
   }
   const consensusCondition = getWeatherMeta(consensusWeatherCode).description;
+  const alerts = detectWeatherAlerts({
+    temp: consensusTemp,
+    feelsLike,
+    rainProb: avgRainProb,
+    windSpeed,
+    uvIndex,
+    weatherCode: consensusWeatherCode,
+  });
 
   return {
     location,
@@ -668,6 +677,7 @@ export async function fetchWeatherEnsemble({
     consensusCondition,
     consensusWeatherCode,
     models,
+    alerts,
     hourlyConsensus,
     dailyForecast,
   };

@@ -5,8 +5,8 @@ import { ModelComparisonGrid } from './components/ModelComparisonGrid';
 import { ForecastChart } from './components/ForecastChart';
 import { WeatherMetricsGrid } from './components/WeatherMetricsGrid';
 import { InteractiveTimeline } from './components/InteractiveTimeline';
-// import { WeatherRadarMap } from './components/WeatherRadarMap';
-import { OpenWeatherLayersMap } from './components/OpenWeatherLayersMap';
+import { WeatherRadarMap } from './components/WeatherRadarMap';
+import { WeatherAlertBanner } from './components/WeatherAlertBanner';
 import { SettingsModal } from './components/SettingsModal';
 import { InfoModal } from './components/InfoModal';
 import { fetchWeatherEnsemble } from './services/weatherEnsemble';
@@ -231,6 +231,9 @@ export function App() {
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenInfo={() => setIsInfoOpen(true)}
           isLoading={isLoading}
+          currentTemp={data?.consensusTemp}
+          currentWeatherCode={data?.consensusWeatherCode}
+          currentAlertsCount={data?.alerts?.length || 0}
         />
       </div>
 
@@ -274,15 +277,30 @@ export function App() {
         {/* Data Ready View */}
         {data && (
           <>
-            {/* 1. Hero Consensus Card */}
+            {/* 0. Weather Alerts Banner (Item 7) */}
+            {data.alerts && data.alerts.length > 0 && (
+              <WeatherAlertBanner alerts={data.alerts} />
+            )}
+
+            {/* 1. Hero Consensus Card (Item 3) */}
             <div id="section-hero">
               <HeroConsensusCard data={data} tempUnit={settings.tempUnit} />
             </div>
 
-            {/* 2. Atmospheric Metrics Grid (Logo abaixo do primeiro card) */}
-            <WeatherMetricsGrid data={data} tempUnit={settings.tempUnit} />
+            {/* 2. Interactive Hourly & Multi-Day Timeline (Item 4) */}
+            <div id="section-timeline">
+              <InteractiveTimeline
+                days={data.dailyForecast}
+                tempUnit={settings.tempUnit}
+              />
+            </div>
 
-            {/* 3 & 4. Model Comparison Cards & Divergence Curves (Condicional às Configurações - padrão: desativado) */}
+            {/* 3. Atmospheric Metrics Grid (Posicionado logo abaixo dos próximos dias - Item 4) */}
+            <div id="section-metrics">
+              <WeatherMetricsGrid data={data} tempUnit={settings.tempUnit} />
+            </div>
+
+            {/* Model Comparison Cards & Divergence Curves (Condicional às Configurações) */}
             {settings.showModelComparison && (
               <>
                 <ModelComparisonGrid
@@ -293,19 +311,11 @@ export function App() {
               </>
             )}
 
-            {/* 5. Interactive Hourly & Multi-Day Timeline */}
-            <div id="section-timeline">
-              <InteractiveTimeline
-                days={data.dailyForecast}
-                tempUnit={settings.tempUnit}
-              />
-            </div>
-
-            {/* 7. OpenWeather Multi-Layer Atmospheric Map */}
+            {/* 4. Weather Radar Map with RainViewer - Doppler de Chuva e Satélite de Nuvens ao Vivo (Item 6) */}
             <div id="section-radar">
-              <OpenWeatherLayersMap
+              <WeatherRadarMap
                 location={currentLocation}
-                apiKey={settings.openWeatherApiKey}
+                temp={data.consensusTemp}
               />
             </div>
           </>

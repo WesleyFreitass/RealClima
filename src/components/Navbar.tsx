@@ -5,14 +5,26 @@ import {
   Settings,
   HelpCircle,
   RefreshCw,
-  Check,
-  Star,
-  Home,
   X,
   ArrowLeft,
+  MoreVertical,
+  Trash2,
+  Pin,
+  AlertTriangle,
+  Sun,
+  Cloud,
+  CloudRain,
+  CloudLightning,
+  CloudSnow,
 } from 'lucide-react';
 import type { LocationData } from '../types/weather';
 import { searchCities, POPULAR_CITIES } from '../services/geocoding';
+
+interface CityWeatherSummary {
+  temp?: number;
+  weatherCode?: number;
+  alertsCount?: number;
+}
 
 interface NavbarProps {
   currentLocation: LocationData;
@@ -24,6 +36,9 @@ interface NavbarProps {
   onOpenSettings: () => void;
   onOpenInfo: () => void;
   isLoading: boolean;
+  currentTemp?: number;
+  currentWeatherCode?: number;
+  currentAlertsCount?: number;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -36,6 +51,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenSettings,
   onOpenInfo,
   isLoading,
+  currentTemp,
+  currentWeatherCode,
+  currentAlertsCount = 0,
 }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<LocationData[]>([]);
@@ -43,6 +61,73 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+
+  // Active 3-dots dropdown menu id
+  const [activeMenuCity, setActiveMenuCity] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Weather cache for saved cities (temp, icon, alerts)
+  const [weatherCache, setWeatherCache] = useState<Record<string, CityWeatherSummary>>(() => {
+    try {
+      const saved = localStorage.getItem('realclima_weather_cache');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  // Cities in the MSN-style top bar
+  const [savedCities, setSavedCities] = useState<LocationData[]>(() => {
+    try {
+      const saved = localStorage.getItem('realclima_saved_cities');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.warn('Erro ao carregar cidades salvas:', e);
+    }
+    return [
+      { name: 'Rodeio', admin1: 'Santa Catarina', country: 'Brasil', lat: -26.9208, lon: -49.3664 },
+      { name: 'Joinville', admin1: 'Santa Catarina', country: 'Brasil', lat: -26.3045, lon: -48.8487 },
+      { name: 'Rio dos Cedros', admin1: 'Santa Catarina', country: 'Brasil', lat: -26.7389, lon: -49.2736 },
+      { name: 'Salvador', admin1: 'Bahia', country: 'Brasil', lat: -12.9714, lon: -38.5014 },
+      { name: 'Timbó', admin1: 'Santa Catarina', country: 'Brasil', lat: -26.8236, lon: -49.2717 },
+      { name: 'Blumenau', admin1: 'Santa Catarina', country: 'Brasil', lat: -26.9194, lon: -49.0661 },
+    ];
+  });
+
+  // Update weather cache when current location weather is received
+  useEffect(() => {
+    if (currentTemp !== undefined && currentLocation?.name) {
+      const key = currentLocation.name.toLowerCase();
+      setWeatherCache((prev) => {
+        const updated = {
+          ...prev,
+          [key]: {
+            temp: Math.round(currentTemp),
+            weatherCode: currentWeatherCode,
+            alertsCount: currentAlertsCount,
+          },
+        };
+        try {
+          localStorage.setItem('realclima_weather_cache', JSON.stringify(updated));
+        } catch {
+          // ignore
+        }
+        return updated;
+      });
+    }
+  }, [currentLocation, currentTemp, currentWeatherCode, currentAlertsCount]);
+
+  // Persist saved cities
+  useEffect(() => {
+    try {
+      localStorage.setItem('realclima_saved_cities', JSON.stringify(savedCities));
+    } catch (e) {
+      console.warn('Erro ao salvar cidades:', e);
+    }
+  }, [savedCities]);
 
   // Debounced search
   useEffect(() => {
@@ -58,176 +143,80 @@ export const Navbar: React.FC<NavbarProps> = ({
       setResults(res);
       setIsSearching(false);
       setIsOpen(true);
-    }, 280);
+    }, 250);
 
     return () => clearTimeout(timer);
   }, [query]);
 
-  // Click outside listener
+  // Click outside listener for search & 3-dots menus
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
         setIsOpen(false);
+      }
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setActiveMenuCity(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const [favorites, setFavorites] = useState<LocationData[]>(() => {
-    try {
-      const saved = localStorage.getItem('realclima_favorites');
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch (e) {
-      console.warn('Erro ao carregar favoritos:', e);
-    }
-    return POPULAR_CITIES.slice(0, 4);
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('realclima_favorites', JSON.stringify(favorites));
-    } catch (e) {
-      console.warn('Erro ao salvar favoritos:', e);
-    }
-  }, [favorites]);
-
-  const isCurrentFavorite = favorites.some(
-    (f) =>
-      f.name.toLowerCase() === currentLocation.name.toLowerCase() ||
-      (Math.abs(f.lat - currentLocation.lat) < 0.01 &&
-        Math.abs(f.lon - currentLocation.lon) < 0.01)
-  );
-
-  const isDefaultCity = Boolean(
-    defaultCity &&
-      (defaultCity.name.toLowerCase() === currentLocation.name.toLowerCase() ||
-        (Math.abs(defaultCity.lat - currentLocation.lat) < 0.01 &&
-          Math.abs(defaultCity.lon - currentLocation.lon) < 0.01))
-  );
-
-  const handleToggleFavorite = (loc: LocationData) => {
-    if (isCurrentFavorite) {
-      setFavorites((prev) =>
-        prev.filter(
-          (f) =>
-            f.name.toLowerCase() !== loc.name.toLowerCase() &&
-            Math.abs(f.lat - loc.lat) >= 0.01
-        )
-      );
-    } else {
-      setFavorites((prev) => [...prev, loc]);
-    }
-  };
-
-  const handleRemoveFavorite = (loc: LocationData) => {
-    setFavorites((prev) =>
-      prev.filter(
-        (f) =>
-          f.name.toLowerCase() !== loc.name.toLowerCase() &&
-          Math.abs(f.lat - loc.lat) >= 0.01
-      )
-    );
-  };
-
+  // When a city is selected, AUTO-ADD to the cities bar!
   const handleSelect = (loc: LocationData) => {
     onSelectLocation(loc);
     setQuery('');
     setIsOpen(false);
+
+    // Auto-add to cities bar if not already present
+    setSavedCities((prev) => {
+      const exists = prev.some(
+        (c) =>
+          c.name.toLowerCase() === loc.name.toLowerCase() ||
+          (Math.abs(c.lat - loc.lat) < 0.01 && Math.abs(c.lon - loc.lon) < 0.01)
+      );
+      if (exists) return prev;
+      return [loc, ...prev];
+    });
+  };
+
+  const handleRemoveCity = (loc: LocationData) => {
+    setSavedCities((prev) =>
+      prev.filter(
+        (c) =>
+          c.name.toLowerCase() !== loc.name.toLowerCase() &&
+          Math.abs(c.lat - loc.lat) >= 0.01
+      )
+    );
+    setActiveMenuCity(null);
+  };
+
+  const handleSetInitial = (loc: LocationData) => {
+    if (onSetDefaultCity) {
+      onSetDefaultCity(loc);
+    }
+    setActiveMenuCity(null);
+  };
+
+  // Weather mini icon helper
+  const renderWeatherIcon = (code?: number) => {
+    if (code === undefined) return <Cloud className="w-3.5 h-3.5 text-cyan-200" />;
+    if ([95, 96, 99].includes(code)) return <CloudLightning className="w-3.5 h-3.5 text-amber-300" />;
+    if (code >= 70 && code <= 77) return <CloudSnow className="w-3.5 h-3.5 text-sky-200" />;
+    if (code >= 50 && code <= 82) return <CloudRain className="w-3.5 h-3.5 text-cyan-300" />;
+    if (code === 0 || code === 1) return <Sun className="w-3.5 h-3.5 text-amber-400" />;
+    return <Cloud className="w-3.5 h-3.5 text-slate-300" />;
   };
 
   return (
-    <header className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-3 pb-1">
-      <div className="living-glass rounded-2xl sm:rounded-3xl px-3.5 sm:px-6 py-2.5 sm:py-3 border border-white/20 shadow-2xl flex items-center justify-between gap-3 sm:gap-4">
-        {/* Brand / Logo com Símbolo de Ondas Isobáricas */}
-        <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
-          <div className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-sky-300 p-0.5 flex items-center justify-center shadow-lg shadow-cyan-500/25 shrink-0">
-            <div className="w-full h-full bg-slate-950/80 rounded-[10px] flex items-center justify-center">
-              <svg
-                className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-300"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M12 2a5 5 0 0 0-5 5v1a4 4 0 0 0-1 7.87V17a3 3 0 0 0 6 0v-1.13A4 4 0 0 0 17 8V7a5 5 0 0 0-5-5z" />
-                <circle cx="12" cy="18" r="3" strokeDasharray="2 2" />
-              </svg>
-            </div>
-          </div>
-          <div>
-            <span className="font-extrabold text-base sm:text-xl tracking-tight bg-gradient-to-r from-white via-cyan-100 to-cyan-300 bg-clip-text text-transparent block leading-tight">
-              RealClima
-            </span>
-            <p className="text-[9px] sm:text-[10px] text-cyan-300/80 hidden sm:block font-medium">
-              Consenso Meteorológico
-            </p>
-          </div>
-        </div>
-
-        {/* Desktop Search Bar (hidden on mobile) */}
-        <div ref={searchRef} className="hidden md:block relative flex-1 max-w-md">
-          <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-300" />
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onFocus={() => {
-                if (results.length > 0) setIsOpen(true);
-              }}
-              placeholder="Buscar cidade (ex: São Paulo, Curitiba, Lisboa)..."
-              className="w-full pl-10 pr-10 py-2 rounded-xl bg-white/10 border border-white/15 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 text-xs sm:text-sm text-slate-100 placeholder-slate-400 transition-all outline-none backdrop-blur-md"
-            />
-            {isSearching ? (
-              <RefreshCw className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-400 animate-spin" />
-            ) : query ? (
-              <button
-                onClick={() => setQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white px-1.5 py-0.5 rounded"
-              >
-                ✕
-              </button>
-            ) : null}
-          </div>
-
-          {/* Desktop Autocomplete Dropdown */}
-          {isOpen && (
-            <div className="absolute top-full left-0 right-0 mt-2 py-2 living-glass border border-white/20 rounded-2xl shadow-2xl z-50 max-h-80 overflow-y-auto">
-              {results.length > 0 ? (
-                results.map((loc, idx) => (
-                  <button
-                    key={`${loc.name}-${loc.lat}-${idx}`}
-                    onClick={() => handleSelect(loc)}
-                    className="w-full px-4 py-2.5 text-left text-sm hover:bg-cyan-500/15 flex items-center justify-between group transition-colors"
-                  >
-                    <div className="flex items-center gap-2.5 truncate">
-                      <MapPin className="w-4 h-4 text-slate-400 group-hover:text-cyan-400 shrink-0" />
-                      <span className="font-medium text-slate-200 group-hover:text-white truncate">
-                        {loc.name}
-                      </span>
-                      {loc.admin1 && (
-                        <span className="text-xs text-slate-400 truncate">
-                          ({loc.admin1})
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-xs text-slate-400 group-hover:text-cyan-300 ml-2 shrink-0">
-                      {loc.country}
-                    </span>
-                  </button>
-                ))
-              ) : query.length >= 2 ? (
-                <div className="px-4 py-3 text-xs text-slate-400 text-center">
-                  Nenhuma cidade encontrada para "{query}".
-                </div>
-              ) : null}
-            </div>
-          )}
+    <header className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-3 pb-1 space-y-2.5">
+      {/* Row 1: Brand & Actions */}
+      <div className="living-glass rounded-2xl sm:rounded-3xl px-3.5 sm:px-6 py-2.5 sm:py-3 border border-white/20 shadow-2xl flex items-center justify-between gap-3 sm:gap-6">
+        {/* Brand / Logo: RealClima ampliado e sem ícone ao lado (Item 8) */}
+        <div className="shrink-0 flex items-center">
+          <span className="font-black text-2xl sm:text-3xl tracking-tight bg-gradient-to-r from-white via-cyan-100 to-cyan-300 bg-clip-text text-transparent select-none cursor-pointer">
+            RealClima
+          </span>
         </div>
 
         {/* Action Buttons */}
@@ -252,7 +241,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span className="hidden md:inline text-xs font-semibold">GPS</span>
           </button>
 
-          {/* Desktop Refresh Button (hidden on mobile, mobile has bottom dock refresh) */}
+          {/* Refresh Button */}
           <button
             onClick={onRefresh}
             disabled={isLoading}
@@ -273,7 +262,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <HelpCircle className="w-4 h-4" />
           </button>
 
-          {/* Desktop Settings Modal Button */}
+          {/* Settings Modal Button */}
           <button
             onClick={onOpenSettings}
             title="Configurações e Chaves de API"
@@ -284,10 +273,200 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </div>
 
-      {/* Mobile Full-Screen Search Modal */}
+      {/* Row 2: MSN Clima Unified Bar (Search on Left + Cities on Right in ONE SINGLE ROW) */}
+      <div className="relative z-40 living-glass rounded-2xl px-2.5 py-1.5 sm:py-2 border border-white/20 shadow-xl flex items-center gap-2.5">
+        {/* 1. Desktop Search Input on the Left (MSN Clima style) */}
+        <div ref={searchRef} className="hidden md:block relative shrink-0 w-48 sm:w-60">
+          <div className="relative">
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onFocus={() => {
+                if (results.length > 0) setIsOpen(true);
+              }}
+              placeholder="Pesquisar por local..."
+              className="w-full pl-3.5 pr-8 py-1.5 rounded-xl bg-slate-900 border border-slate-700 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/25 text-xs text-slate-100 placeholder-slate-400 transition-all outline-none shadow-inner"
+            />
+            {isSearching ? (
+              <RefreshCw className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-cyan-400 animate-spin" />
+            ) : query ? (
+              <button
+                onClick={() => setQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white px-1"
+              >
+                ✕
+              </button>
+            ) : (
+              <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+            )}
+          </div>
+
+          {/* Autocomplete Dropdown - 100% Solid Opaque #090d16 canvas (NO BLEED-THROUGH) */}
+          {isOpen && (
+            <div
+              style={{ backgroundColor: '#090d16', opacity: 1, zIndex: 99999 }}
+              className="absolute top-full left-0 mt-2 py-2 w-80 sm:w-96 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.95)] border border-slate-700 max-h-80 overflow-y-auto"
+            >
+              {results.length > 0 ? (
+                results.map((loc, idx) => (
+                  <button
+                    key={`${loc.name}-${loc.lat}-${idx}`}
+                    onClick={() => handleSelect(loc)}
+                    style={{ backgroundColor: '#090d16' }}
+                    className="w-full px-4 py-2.5 text-left text-sm hover:bg-slate-800 flex items-center justify-between group transition-colors"
+                  >
+                    <div className="flex items-center gap-2.5 truncate">
+                      <MapPin className="w-4 h-4 text-slate-400 group-hover:text-cyan-400 shrink-0" />
+                      <span className="font-semibold text-slate-100 group-hover:text-white truncate">
+                        {loc.name}
+                      </span>
+                      {loc.admin1 && (
+                        <span className="text-xs text-slate-400 truncate">
+                          ({loc.admin1})
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs text-slate-400 group-hover:text-cyan-300 ml-2 shrink-0">
+                      {loc.country}
+                    </span>
+                  </button>
+                ))
+              ) : query.length >= 2 ? (
+                <div className="px-4 py-3 text-xs text-slate-400 text-center">
+                  Nenhuma cidade encontrada para "{query}".
+                </div>
+              ) : null}
+            </div>
+          )}
+        </div>
+
+        {/* Divider between search and city chips (desktop only) */}
+        <div className="hidden md:block w-px h-6 bg-white/15 shrink-0" />
+
+        {/* 2. Horizontal Scroll of Cities Chips (Directly to the right of search!) */}
+        <div className="flex-1 flex items-center gap-2 overflow-x-auto no-scrollbar touch-pan-x py-0.5">
+          {savedCities.map((city) => {
+            const isSelected =
+              currentLocation.name.toLowerCase() === city.name.toLowerCase();
+            const isInitial =
+              defaultCity &&
+              (defaultCity.name.toLowerCase() === city.name.toLowerCase() ||
+                (Math.abs(defaultCity.lat - city.lat) < 0.01 &&
+                  Math.abs(defaultCity.lon - city.lon) < 0.01));
+
+            const cityKey = city.name.toLowerCase();
+            const weather = weatherCache[cityKey] || {
+              temp: isSelected && currentTemp !== undefined ? Math.round(currentTemp) : 22,
+              weatherCode: isSelected ? currentWeatherCode : 2,
+              alertsCount: isSelected ? currentAlertsCount : 0,
+            };
+
+            const isMenuOpen = activeMenuCity === city.name;
+
+            return (
+              <div
+                key={`${city.name}-${city.lat}-${city.lon}`}
+                className={`relative group shrink-0 inline-flex items-center rounded-xl transition-all border ${
+                  isSelected
+                    ? 'bg-slate-900 border-cyan-400/50 text-white shadow-md shadow-cyan-500/15'
+                    : 'bg-slate-900/80 border-slate-700/60 text-slate-300 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                {/* Main Pill Content: Name (truncated + underline if active), Icon, Temp, Warning Badge */}
+                <button
+                  type="button"
+                  onClick={() => handleSelect(city)}
+                  className="pl-3 pr-1.5 py-1.5 flex items-center gap-2 text-xs select-none"
+                >
+                  {/* Truncated City Name with Underline when selected (MSN Clima style) */}
+                  <span
+                    className={`max-w-[70px] sm:max-w-[90px] truncate block ${
+                      isSelected ? 'font-bold text-white underline underline-offset-4 decoration-2 decoration-cyan-400' : 'font-medium'
+                    }`}
+                    title={city.name}
+                  >
+                    {city.name}
+                  </span>
+
+                  {/* Weather Mini Icon */}
+                  <span className="shrink-0">
+                    {renderWeatherIcon(weather.weatherCode)}
+                  </span>
+
+                  {/* Quick Temp */}
+                  {weather.temp !== undefined && (
+                    <span className="font-semibold text-slate-100 text-[11px] sm:text-xs">
+                      {weather.temp}°
+                    </span>
+                  )}
+
+                  {/* Warning Alert Badge if active (MSN Clima yellow icon style) */}
+                  {weather.alertsCount !== undefined && weather.alertsCount > 0 && (
+                    <span
+                      title={`${weather.alertsCount} aviso(s) meteorológico(s)`}
+                      className="px-1.5 py-0.5 rounded-md bg-amber-400 text-slate-950 font-black text-[10px] flex items-center gap-0.5 shrink-0 shadow-sm"
+                    >
+                      <AlertTriangle className="w-2.5 h-2.5 fill-slate-950 text-slate-950" />
+                      <span>{weather.alertsCount}</span>
+                    </span>
+                  )}
+                </button>
+
+                {/* 3 Dots Menu Button (⋮) */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveMenuCity(isMenuOpen ? null : city.name);
+                  }}
+                  title="Opções do local"
+                  className="pr-2 pl-1 py-1.5 text-slate-400 hover:text-white transition-colors"
+                >
+                  <MoreVertical className="w-3.5 h-3.5" />
+                </button>
+
+                {/* Dropdown Menu for 3 Dots (Fixar inicial / Remover) */}
+                {isMenuOpen && (
+                  <div
+                    ref={menuRef}
+                    style={{ backgroundColor: '#090d16', zIndex: 99999 }}
+                    className="absolute right-0 top-full mt-1.5 w-44 rounded-xl shadow-2xl border border-slate-700 py-1 text-xs animate-in fade-in zoom-in-95 duration-150"
+                  >
+                    {onSetDefaultCity && (
+                      <button
+                        type="button"
+                        onClick={() => handleSetInitial(city)}
+                        style={{ backgroundColor: '#090d16' }}
+                        className="w-full px-3 py-2 text-left hover:bg-slate-800 flex items-center gap-2 text-slate-200 transition-colors"
+                      >
+                        <Pin className={`w-3.5 h-3.5 ${isInitial ? 'text-emerald-400 fill-emerald-400/40' : 'text-slate-400'}`} />
+                        <span>{isInitial ? 'Cidade Inicial ✓' : 'Fixar como inicial'}</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveCity(city)}
+                      style={{ backgroundColor: '#090d16' }}
+                      className="w-full px-3 py-2 text-left hover:bg-rose-500/20 text-rose-300 flex items-center gap-2 transition-colors border-t border-slate-800"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                      <span>Remover</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Mobile Full-Screen Search Modal - 100% Opaque Solid */}
       {isMobileSearchOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-2xl flex flex-col p-4 animate-in fade-in duration-200">
-          {/* Top Bar inside Search Sheet */}
+        <div
+          style={{ backgroundColor: '#020617', zIndex: 99999 }}
+          className="fixed inset-0 flex flex-col p-4 animate-in fade-in duration-200"
+        >
           <div className="flex items-center gap-2.5 pb-3 border-b border-white/15">
             <button
               onClick={() => {
@@ -300,14 +479,13 @@ export const Navbar: React.FC<NavbarProps> = ({
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-300" />
               <input
                 autoFocus
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Buscar município (ex: Florianópolis)..."
-                className="w-full pl-9 pr-9 py-2.5 rounded-xl bg-white/10 border border-cyan-400/40 text-sm text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-cyan-400/30"
+                placeholder="Pesquisar por local..."
+                className="w-full pl-3.5 pr-9 py-2.5 rounded-xl bg-slate-900 border border-cyan-400/40 text-sm text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-cyan-400/30"
               />
               {query && (
                 <button
@@ -320,12 +498,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Search Content */}
           <div className="flex-1 overflow-y-auto py-3 space-y-4">
             {isSearching ? (
               <div className="py-12 flex flex-col items-center justify-center text-slate-400 gap-3">
                 <RefreshCw className="w-6 h-6 animate-spin text-cyan-400" />
-                <span className="text-sm">Buscando municípios...</span>
+                <span className="text-sm">Buscando locais...</span>
               </div>
             ) : results.length > 0 ? (
               <div className="space-y-1.5">
@@ -339,7 +516,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                       handleSelect(loc);
                       setIsMobileSearchOpen(false);
                     }}
-                    className="w-full p-3 rounded-xl bg-white/5 hover:bg-cyan-500/15 border border-white/10 flex items-center justify-between text-left transition-colors active:scale-[0.99]"
+                    style={{ backgroundColor: '#090d16' }}
+                    className="w-full p-3 rounded-xl hover:bg-slate-800 border border-white/10 flex items-center justify-between text-left transition-colors active:scale-[0.99]"
                   >
                     <div className="flex items-center gap-3 truncate">
                       <div className="p-2 rounded-lg bg-cyan-400/10 text-cyan-300 shrink-0">
@@ -355,10 +533,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <span className="text-xs text-cyan-400 shrink-0 ml-2">Escolher →</span>
                   </button>
                 ))}
-              </div>
-            ) : query.length >= 2 ? (
-              <div className="py-12 text-center text-slate-400 text-sm">
-                Nenhum município encontrado para "{query}".
               </div>
             ) : (
               <div className="space-y-2.5">
@@ -376,7 +550,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                         handleSelect(c);
                         setIsMobileSearchOpen(false);
                       }}
-                      className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-left transition-all flex items-center gap-2 active:scale-95"
+                      style={{ backgroundColor: '#090d16' }}
+                      className="p-2.5 rounded-xl hover:bg-slate-800 border border-white/10 text-left transition-all flex items-center gap-2 active:scale-95"
                     >
                       <MapPin className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
                       <div className="truncate">
@@ -391,99 +566,6 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
       )}
-
-      {/* Municipios Favoritos bar */}
-      <div className="mt-2 px-1 sm:px-2 overflow-x-auto flex items-center gap-2 text-xs no-scrollbar touch-pan-x py-1">
-        <div className="flex items-center gap-1.5 text-slate-300 font-semibold shrink-0 mr-1">
-          <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-          <span className="text-[11px] uppercase tracking-wider">Favoritos:</span>
-        </div>
-
-        {/* Save Current City Quick Button */}
-        <button
-          onClick={() => handleToggleFavorite(currentLocation)}
-          title={isCurrentFavorite ? "Remover dos favoritos" : "Salvar município atual nos favoritos"}
-          className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 shrink-0 transition-all ${
-            isCurrentFavorite
-              ? 'bg-amber-400/20 text-amber-300 border border-amber-400/40 hover:bg-amber-400/30'
-              : 'bg-slate-900 border border-slate-700/60 text-slate-300 hover:text-white hover:border-slate-500'
-          }`}
-        >
-          <Star className={`w-3 h-3 ${isCurrentFavorite ? 'fill-amber-400 text-amber-400' : 'text-slate-400'}`} />
-          <span>{isCurrentFavorite ? 'Salvo' : '+ Salvar atual'}</span>
-        </button>
-
-        {/* Set Initial/Default City Quick Button */}
-        {onSetDefaultCity && (
-          <button
-            onClick={() => onSetDefaultCity(currentLocation)}
-            title={
-              isDefaultCity
-                ? 'Esta é a sua cidade inicial ao abrir o RealClima'
-                : 'Definir município atual como cidade inicial ao abrir o RealClima'
-            }
-            className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 shrink-0 transition-all ${
-              isDefaultCity
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 shadow-sm shadow-emerald-500/10'
-                : 'bg-slate-900 border border-slate-700/60 text-slate-300 hover:text-white hover:border-slate-500'
-            }`}
-          >
-            <Home className={`w-3 h-3 ${isDefaultCity ? 'text-emerald-400 fill-emerald-400/30' : 'text-slate-400'}`} />
-            <span>{isDefaultCity ? 'Cidade Inicial ✓' : 'Definir Inicial'}</span>
-          </button>
-        )}
-
-        {/* List of Favorite Cities */}
-        {favorites.length > 0 ? (
-          favorites.map((c) => {
-            const isSelected =
-              currentLocation.name.toLowerCase() === c.name.toLowerCase();
-            const isCityDefault =
-              defaultCity &&
-              (defaultCity.name.toLowerCase() === c.name.toLowerCase() ||
-                (Math.abs(defaultCity.lat - c.lat) < 0.01 &&
-                  Math.abs(defaultCity.lon - c.lon) < 0.01));
-
-            return (
-              <div
-                key={`${c.name}-${c.lat}-${c.lon}`}
-                className={`inline-flex items-center rounded-lg text-xs font-medium whitespace-nowrap transition-all border shrink-0 ${
-                  isSelected
-                    ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-sm shadow-cyan-500/10'
-                    : 'bg-slate-900/60 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80 border-slate-800'
-                }`}
-              >
-                <button
-                  onClick={() => handleSelect(c)}
-                  className="px-2.5 py-1 flex items-center gap-1.5"
-                >
-                  {isCityDefault && (
-                    <span title="Cidade Inicial padrão ao abrir o app">
-                      <Home className="w-3 h-3 text-emerald-400 shrink-0" />
-                    </span>
-                  )}
-                  {isSelected && <Check className="w-3 h-3 text-cyan-400 shrink-0" />}
-                  <span>{c.name}</span>
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRemoveFavorite(c);
-                  }}
-                  title="Remover dos favoritos"
-                  className="pr-2 pl-0.5 py-1 text-slate-500 hover:text-rose-400 transition-colors text-xs font-bold"
-                >
-                  ✕
-                </button>
-              </div>
-            );
-          })
-        ) : (
-          <span className="text-slate-500 text-xs italic">
-            Nenhum município favoritado ainda. Salve cidades para acesso rápido.
-          </span>
-        )}
-      </div>
     </header>
   );
 };
