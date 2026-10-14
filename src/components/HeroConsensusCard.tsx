@@ -81,76 +81,79 @@ export const HeroConsensusCard: React.FC<HeroConsensusCardProps> = ({
   const activeModelsCount = models.filter((m) => m.status === 'online').length;
 
   return (
-    <div className="relative overflow-hidden rounded-3xl glass-panel-glow p-6 sm:p-8 border border-cyan-500/20">
+    <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl living-glass p-4 sm:p-7 md:p-10 border border-white/20 shadow-2xl">
       {/* Background ambient radial glow */}
-      <div className="absolute -top-24 -right-24 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -top-24 -right-24 w-96 h-96 bg-cyan-400/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="relative z-10 flex flex-col lg:flex-row lg:items-end justify-between gap-6 sm:gap-8">
         {/* Left Side: Location, Category, Big Temp */}
-        <div className="space-y-4">
+        <div className="space-y-3.5 sm:space-y-4 flex-1">
           {/* Location & Status pills */}
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900/80 border border-white/10 text-xs text-slate-300">
-              <MapPin className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="font-semibold text-white">{location.name}</span>
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs text-slate-200 shadow-sm">
+              <MapPin className="w-3.5 h-3.5 text-cyan-300" />
+              <span className="font-bold text-white">{location.name}</span>
               {location.admin1 && (
-                <span className="text-slate-400">, {location.admin1}</span>
+                <span className="text-slate-300">, {location.admin1}</span>
               )}
               {location.country && (
                 <span className="text-slate-400">({location.country})</span>
               )}
             </div>
 
-            <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-900/60 border border-white/5 text-[11px] text-slate-400">
-              <Clock className="w-3 h-3 text-slate-400" />
+            <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/5 backdrop-blur-md border border-white/10 text-[11px] text-slate-300">
+              <Clock className="w-3 h-3 text-cyan-300" />
               <span>Atualizado às {updatedTimeStr}</span>
             </div>
           </div>
 
           {/* Temperature and Main Condition */}
-          <div className="flex items-center gap-6">
+          <div className="flex items-center justify-between sm:justify-start gap-4 sm:gap-6 pt-1">
             <div>
-              <div className="text-6xl sm:text-7xl font-extrabold tracking-tight text-white flex items-start">
+              <div className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-black tracking-tighter text-white drop-shadow-[0_8px_30px_rgba(0,0,0,0.8)] flex items-start leading-none">
                 <span>{displayTemp(consensusTemp)}</span>
               </div>
-              <div className="flex items-center gap-2.5 mt-1">
-                <span className="text-lg font-medium text-slate-200">
+              <div className="flex items-center gap-2 mt-2 drop-shadow flex-wrap">
+                <span className="text-base sm:text-lg md:text-xl font-bold text-slate-100">
                   {weatherMeta.description}
                 </span>
-                <span className="text-xs text-slate-400">• Sensação de {displayIntTemp(feelsLike)}</span>
+                <span className="text-xs text-slate-300 font-medium">• Sensação de {displayIntTemp(feelsLike)}</span>
               </div>
             </div>
 
             {/* Weather Large Icon with glow */}
             <div
-              className={`p-4 rounded-2xl bg-gradient-to-br ${weatherMeta.bgColor} border border-white/10 flex items-center justify-center shrink-0 shadow-lg`}
+              className={`p-3 sm:p-4 rounded-2xl sm:rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center shrink-0 shadow-2xl`}
             >
-              <Icon className={`w-14 h-14 ${weatherMeta.color} animate-pulse`} />
+              <Icon className={`w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 ${weatherMeta.color} animate-pulse drop-shadow-[0_0_12px_rgba(56,189,248,0.5)]`} />
             </div>
           </div>
 
           {/* Consensus Confidence Badge */}
-          <div className="pt-1">
+          <div className="pt-1 sm:pt-2 flex flex-wrap items-center gap-2.5 sm:gap-3">
             <div
-              className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-semibold shadow-sm ${confidenceStyles.badge}`}
+              className={`inline-flex items-center gap-2 px-3 sm:px-3.5 py-1.5 rounded-full border text-xs font-bold shadow-md backdrop-blur-md ${confidenceStyles.badge}`}
               title={confidenceStyles.desc}
             >
               <ConfidenceIcon className="w-4 h-4" />
               <span>{confidenceText}</span>
             </div>
+            <span className="text-xs text-slate-300 hidden sm:inline">
+              Supercomputadores: ECMWF, GFS, ICON, GEM
+            </span>
           </div>
         </div>
 
-        {/* Right Side: Key Ensemble Analytics Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 gap-3 min-w-[280px]">
+        {/* Right Side: Key Ensemble Analytics Cards (Living Glass Slabs) */}
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-3 w-full lg:w-auto lg:min-w-[320px]">
           {/* Models in Agreement */}
-          <div className="p-3.5 rounded-2xl bg-slate-900/70 border border-white/5">
-            <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
-              <Layers className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Modelos Ativos</span>
+          <div className="living-glass-card p-3 sm:p-3.5 rounded-xl sm:rounded-2xl">
+            <div className="flex items-center gap-2 text-xs text-slate-300 mb-1">
+              <Layers className="w-3.5 h-3.5 text-cyan-300" />
+              <span className="font-semibold">Modelos Ativos</span>
             </div>
-            <div className="text-xl font-bold text-white">
+            <div className="text-xl font-black text-white">
               {activeModelsCount} fontes
             </div>
             <p className="text-[11px] text-slate-400 mt-0.5">
@@ -159,12 +162,12 @@ export const HeroConsensusCard: React.FC<HeroConsensusCardProps> = ({
           </div>
 
           {/* Inter-Model Divergence */}
-          <div className="p-3.5 rounded-2xl bg-slate-900/70 border border-white/5">
-            <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
-              <Thermometer className="w-3.5 h-3.5 text-purple-400" />
-              <span>Dispersão (σ)</span>
+          <div className="living-glass-card p-3.5 rounded-2xl">
+            <div className="flex items-center gap-2 text-xs text-slate-300 mb-1">
+              <Thermometer className="w-3.5 h-3.5 text-purple-300" />
+              <span className="font-semibold">Dispersão (σ)</span>
             </div>
-            <div className="text-xl font-bold text-white">
+            <div className="text-xl font-black text-white">
               ±{divergence.toFixed(1)}°C
             </div>
             <p className="text-[11px] text-slate-400 mt-0.5">
@@ -173,29 +176,29 @@ export const HeroConsensusCard: React.FC<HeroConsensusCardProps> = ({
           </div>
 
           {/* Median Temp */}
-          <div className="p-3.5 rounded-2xl bg-slate-900/70 border border-white/5">
-            <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
-              <Thermometer className="w-3.5 h-3.5 text-amber-400" />
-              <span>Mediana</span>
+          <div className="living-glass-card p-3.5 rounded-2xl">
+            <div className="flex items-center gap-2 text-xs text-slate-300 mb-1">
+              <Thermometer className="w-3.5 h-3.5 text-amber-300" />
+              <span className="font-semibold">Mediana</span>
             </div>
-            <div className="text-xl font-bold text-white">
+            <div className="text-xl font-black text-white">
               {displayTemp(medianTemp)}
             </div>
             <p className="text-[11px] text-slate-400 mt-0.5">
-              Filtro contra distorções
+              Filtro estatístico
             </p>
           </div>
 
           {/* Rain Probability Consensus */}
-          <div className="p-3.5 rounded-2xl bg-slate-900/70 border border-white/5">
-            <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
-              <CloudRain className="w-3.5 h-3.5 text-blue-400" />
-              <span>Chuva (Consenso)</span>
+          <div className="living-glass-card p-3.5 rounded-2xl border-cyan-400/30">
+            <div className="flex items-center gap-2 text-xs text-cyan-300 mb-1">
+              <CloudRain className="w-3.5 h-3.5 text-cyan-300" />
+              <span className="font-semibold">Chuva (Consenso)</span>
             </div>
-            <div className="text-xl font-bold text-white">
+            <div className="text-xl font-black text-white">
               {consensusRainProb}%
             </div>
-            <p className="text-[11px] text-slate-400 mt-0.5">
+            <p className="text-[11px] text-cyan-200/80 mt-0.5">
               {consensusRainProb > 60
                 ? 'Alta chance de chuva'
                 : consensusRainProb > 20

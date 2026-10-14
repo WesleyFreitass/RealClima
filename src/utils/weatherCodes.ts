@@ -38,8 +38,8 @@ export function getWeatherMeta(code: number): WeatherMeta {
       return {
         description: 'Parcialmente Nublado',
         icon: CloudSun,
-        color: 'text-cyan-300',
-        bgColor: 'from-cyan-500/20 to-blue-500/10',
+        color: 'text-amber-300',
+        bgColor: 'from-amber-400/20 to-yellow-500/10',
       };
     case 3:
       return {

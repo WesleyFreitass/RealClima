@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Sliders, Key, Thermometer, Check } from 'lucide-react';
+import { X, Sliders, Thermometer, Check, Layers } from 'lucide-react';
 import type { AppSettings, ModelId } from '../types/weather';
 
 interface SettingsModalProps {
@@ -32,7 +32,7 @@ const MODEL_LABELS: Record<ModelId, { title: string; desc: string }> = {
   },
   openweather: {
     title: 'OpenWeatherMap',
-    desc: 'Requer chave de API própria (gratuita no site openweathermap.org).',
+    desc: 'Rede meteorológica global integrada nativamente ao sistema.',
   },
 };
 
@@ -67,32 +67,75 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-      <div className="w-full max-w-lg bg-slate-900 border border-white/10 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xl">
+      <div className="w-full max-w-lg living-glass border border-white/20 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-white/10">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
+            <div className="p-2 rounded-xl bg-cyan-400/10 border border-cyan-400/20 text-cyan-300">
               <Sliders className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-white">Configurações do App</h3>
-              <p className="text-xs text-slate-400">
-                Personalize fontes meteorológicas e preferências
+              <h3 className="text-lg font-bold text-white">Configurações do RealClima</h3>
+              <p className="text-xs text-slate-300">
+                Personalize fontes meteorológicas e preferências de visualização
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* 1. Unidade de Temperatura */}
+        {/* 1. Visualização: Comparativo e Divergência de Modelos */}
         <div className="space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+          <label className="text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+            <Layers className="w-3.5 h-3.5 text-cyan-400" />
+            Visualização de Modelos
+          </label>
+          <div
+            onClick={() =>
+              setLocalSettings((s) => ({
+                ...s,
+                showModelComparison: !s.showModelComparison,
+              }))
+            }
+            className={`p-3.5 rounded-2xl border flex items-center justify-between cursor-pointer transition-all ${
+              localSettings.showModelComparison
+                ? 'living-glass border-cyan-400/50 bg-cyan-400/10 text-white shadow-md'
+                : 'living-glass-card border-white/10 text-slate-300 hover:border-white/20'
+            }`}
+          >
+            <div className="space-y-0.5 pr-3">
+              <div className="font-semibold text-sm">
+                Exibir Comparativo e Divergência de Modelos
+              </div>
+              <div className="text-xs text-slate-300 leading-relaxed">
+                Mostra a linha de cards dos modelos e o gráfico de convergência de 24 horas na tela inicial (padrão: desativado).
+              </div>
+            </div>
+
+            {/* Toggle Switch */}
+            <div
+              className={`w-12 h-6 rounded-full transition-colors relative shrink-0 p-0.5 ${
+                localSettings.showModelComparison ? 'bg-cyan-400' : 'bg-slate-700/80'
+              }`}
+            >
+              <div
+                className={`w-5 h-5 rounded-full bg-white shadow-md transition-transform ${
+                  localSettings.showModelComparison ? 'translate-x-6' : 'translate-x-0'
+                }`}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* 2. Unidade de Temperatura */}
+        <div className="space-y-2">
+          <label className="text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
             <Thermometer className="w-3.5 h-3.5 text-cyan-400" />
             Unidade de Temperatura
           </label>
@@ -101,10 +144,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               onClick={() =>
                 setLocalSettings((s) => ({ ...s, tempUnit: 'C' }))
               }
-              className={`py-2.5 rounded-xl text-sm font-semibold border transition-all ${
+              className={`py-2.5 rounded-xl text-sm font-semibold border transition-all cursor-pointer ${
                 localSettings.tempUnit === 'C'
-                  ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50'
-                  : 'bg-slate-800/60 text-slate-400 border-slate-700/50 hover:bg-slate-800'
+                  ? 'bg-cyan-400/20 text-cyan-200 border-cyan-400/60 shadow-md font-bold'
+                  : 'living-glass-card text-slate-300 border-white/10 hover:border-white/20'
               }`}
             >
               Graus Celsius (°C)
@@ -113,10 +156,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               onClick={() =>
                 setLocalSettings((s) => ({ ...s, tempUnit: 'F' }))
               }
-              className={`py-2.5 rounded-xl text-sm font-semibold border transition-all ${
+              className={`py-2.5 rounded-xl text-sm font-semibold border transition-all cursor-pointer ${
                 localSettings.tempUnit === 'F'
-                  ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50'
-                  : 'bg-slate-800/60 text-slate-400 border-slate-700/50 hover:bg-slate-800'
+                  ? 'bg-cyan-400/20 text-cyan-200 border-cyan-400/60 shadow-md font-bold'
+                  : 'living-glass-card text-slate-300 border-white/10 hover:border-white/20'
               }`}
             >
               Fahrenheit (°F)
@@ -124,10 +167,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
         </div>
 
-        {/* 2. Seleção de Modelos Ativos */}
+        {/* 3. Seleção de Modelos Ativos */}
         <div className="space-y-2.5">
-          <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Modelos Ativos no Consenso
+          <label className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+            Modelos Ativos no Cálculo do Consenso
           </label>
           <div className="space-y-2">
             {(Object.keys(MODEL_LABELS) as ModelId[]).map((id) => {
@@ -140,21 +183,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   onClick={() => handleToggleModel(id)}
                   className={`p-3 rounded-xl border flex items-start justify-between cursor-pointer transition-all ${
                     isChecked
-                      ? 'bg-slate-800/80 border-cyan-500/30'
-                      : 'bg-slate-900/60 border-slate-800 opacity-60'
+                      ? 'living-glass border-cyan-400/40 shadow-sm'
+                      : 'living-glass-card border-white/5 opacity-60'
                   }`}
                 >
                   <div className="space-y-0.5 pr-2">
                     <div className="font-semibold text-sm text-white">
                       {info.title}
                     </div>
-                    <div className="text-xs text-slate-400">{info.desc}</div>
+                    <div className="text-xs text-slate-300">{info.desc}</div>
                   </div>
                   <div
                     className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
                       isChecked
-                        ? 'bg-cyan-500 border-cyan-400 text-black'
-                        : 'border-slate-600 bg-slate-800'
+                        ? 'bg-cyan-400 border-cyan-300 text-black font-bold'
+                        : 'border-white/20 bg-white/5'
                     }`}
                   >
                     {isChecked && <Check className="w-3.5 h-3.5 stroke-[3]" />}
@@ -165,42 +208,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
         </div>
 
-        {/* 3. Chave de API OpenWeatherMap (Opcional) */}
-        {localSettings.enabledModels.openweather && (
-          <div className="space-y-2 p-3.5 rounded-xl bg-slate-950/60 border border-yellow-500/20">
-            <label className="text-xs font-semibold text-yellow-300 flex items-center gap-1.5">
-              <Key className="w-3.5 h-3.5" />
-              Chave de API OpenWeatherMap (Opcional)
-            </label>
-            <input
-              type="password"
-              placeholder="Cole sua API Key aqui..."
-              value={localSettings.openWeatherApiKey || ''}
-              onChange={(e) =>
-                setLocalSettings((s) => ({
-                  ...s,
-                  openWeatherApiKey: e.target.value,
-                }))
-              }
-              className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 outline-none focus:border-yellow-500"
-            />
-            <p className="text-[11px] text-slate-400">
-              A chave fica gravada apenas no navegador (localStorage). Se deixada em branco, os outros 4 modelos funcionarão normalmente.
-            </p>
-          </div>
-        )}
-
         {/* Footer actions */}
         <div className="pt-2 flex items-center justify-end gap-3 border-t border-white/10">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl text-sm font-medium text-slate-400 hover:text-white transition-colors"
+            className="px-4 py-2 rounded-xl text-sm font-medium text-slate-300 hover:text-white transition-colors cursor-pointer"
           >
             Cancelar
           </button>
           <button
             onClick={handleSave}
-            className="px-5 py-2 rounded-xl text-sm font-semibold bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/25 hover:from-cyan-400 hover:to-blue-500 transition-all flex items-center gap-1.5"
+            className="px-5 py-2 rounded-xl text-sm font-bold bg-gradient-to-r from-cyan-400 to-sky-500 text-slate-950 shadow-lg shadow-cyan-400/25 hover:from-cyan-300 hover:to-sky-400 transition-all flex items-center gap-1.5 cursor-pointer"
           >
             {savedSuccess ? (
               <>

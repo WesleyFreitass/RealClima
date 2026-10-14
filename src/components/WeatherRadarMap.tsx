@@ -11,6 +11,8 @@ import {
   Crosshair,
   Maximize2,
   Minimize2,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react';
 import type { LocationData } from '../types/weather';
 
@@ -49,20 +51,18 @@ export const WeatherRadarMap: React.FC<WeatherRadarMapProps> = ({
       const map = L.map(mapContainerRef.current, {
         center: [location.lat, location.lon],
         zoom: 8,
-        minZoom: 4,
-        maxZoom: 15,
+        minZoom: 3,
+        maxZoom: 18,
         zoomControl: false,
+        scrollWheelZoom: true,
       });
 
-      // Dark Matter Base Layer
-      L.tileLayer(
-        'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-        {
-          attribution: '&copy; OpenStreetMap & CartoDB',
-          subdomains: 'abcd',
-          maxZoom: 19,
-        }
-      ).addTo(map);
+      // Global OpenStreetMap with Dark Theme (Full street-level zoom, 0 watermark)
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors & RainViewer',
+        className: 'dark-map-tiles',
+        maxZoom: 19,
+      }).addTo(map);
 
       // Custom Pulsing City Marker
       const pinIcon = L.divIcon({
@@ -159,6 +159,8 @@ export const WeatherRadarMap: React.FC<WeatherRadarMapProps> = ({
       const newRadarLayer = L.tileLayer(tileUrl, {
         opacity: opacity,
         zIndex: 50,
+        maxNativeZoom: 12,
+        maxZoom: 18,
       }).addTo(mapInstanceRef.current);
 
       radarLayerRef.current = newRadarLayer;
@@ -183,13 +185,21 @@ export const WeatherRadarMap: React.FC<WeatherRadarMapProps> = ({
     return () => clearInterval(interval);
   }, [isPlaying, frames.length]);
 
-  // Recenter helper
+  // Recenter and Zoom helpers
   const handleRecenter = () => {
     if (mapInstanceRef.current) {
       mapInstanceRef.current.setView([location.lat, location.lon], 9, {
         animate: true,
       });
     }
+  };
+
+  const handleZoomIn = () => {
+    mapInstanceRef.current?.zoomIn();
+  };
+
+  const handleZoomOut = () => {
+    mapInstanceRef.current?.zoomOut();
   };
 
   // Format frame timestamp
@@ -230,13 +240,27 @@ export const WeatherRadarMap: React.FC<WeatherRadarMapProps> = ({
               </span>
             </div>
             <p className="text-xs text-slate-400">
-              Imagens de radar meteorológico global (RainViewer / CartoDB)
+              Imagens de radar meteorológico global (RainViewer / Satélite ao Vivo)
             </p>
           </div>
         </div>
 
-        {/* Header Right Actions */}
-        <div className="flex items-center gap-2">
+        {/* Header Right Actions with Zoom Controls */}
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={handleZoomIn}
+            title="Aproximar zoom (+)"
+            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-white/5 transition-colors"
+          >
+            <ZoomIn className="w-4 h-4" />
+          </button>
+          <button
+            onClick={handleZoomOut}
+            title="Afastar zoom (-)"
+            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-white/5 transition-colors"
+          >
+            <ZoomOut className="w-4 h-4" />
+          </button>
           <button
             onClick={handleRecenter}
             title="Recentrar na cidade selecionada"

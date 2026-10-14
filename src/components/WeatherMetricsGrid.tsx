@@ -56,44 +56,44 @@ export const WeatherMetricsGrid: React.FC<WeatherMetricsGridProps> = ({
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-bold text-white flex items-center gap-2">
-        <Gauge className="w-5 h-5 text-cyan-400" />
+      <h3 className="text-lg font-extrabold text-white flex items-center gap-2 drop-shadow">
+        <Gauge className="w-5 h-5 text-cyan-300 drop-shadow-[0_0_8px_#38bdf8]" />
         <span>Métricas Atmosféricas Detalhadas</span>
       </h3>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         {/* 1. Umidade */}
-        <div className="glass-card rounded-2xl p-4 border border-white/5 space-y-2">
-          <div className="flex items-center justify-between text-slate-400 text-xs">
-            <span>Umidade do Ar</span>
-            <Droplets className="w-4 h-4 text-cyan-400" />
+        <div className="living-glass-card rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-white/15 space-y-2">
+          <div className="flex items-center justify-between text-slate-300 text-xs">
+            <span className="font-semibold">Umidade do Ar</span>
+            <Droplets className="w-4 h-4 text-cyan-300" />
           </div>
-          <div className="text-2xl font-extrabold text-white">
+          <div className="text-2xl sm:text-3xl font-black text-white">
             {consensusHumidity}%
           </div>
-          <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+          <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
             <div
-              className="bg-cyan-400 h-1.5 rounded-full transition-all duration-500"
+              className="bg-gradient-to-r from-cyan-400 to-sky-300 h-1.5 rounded-full transition-all duration-500 shadow-[0_0_8px_#38bdf8]"
               style={{ width: `${Math.min(100, consensusHumidity)}%` }}
             />
           </div>
-          <div className={`text-[11px] font-medium ${hum.color}`}>
+          <div className={`text-[11px] font-bold ${hum.color}`}>
             {hum.label}
           </div>
         </div>
 
         {/* 2. Vento */}
-        <div className="glass-card rounded-2xl p-4 border border-white/5 space-y-2">
-          <div className="flex items-center justify-between text-slate-400 text-xs">
-            <span>Vento e Direção</span>
-            <Wind className="w-4 h-4 text-emerald-400" />
+        <div className="living-glass-card rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-white/15 space-y-2">
+          <div className="flex items-center justify-between text-slate-300 text-xs">
+            <span className="font-semibold">Vento e Direção</span>
+            <Wind className="w-4 h-4 text-emerald-300" />
           </div>
-          <div className="text-2xl font-extrabold text-white flex items-baseline gap-1">
+          <div className="text-2xl sm:text-3xl font-black text-white flex items-baseline gap-1">
             <span>{consensusWindSpeed}</span>
-            <span className="text-xs font-normal text-slate-400">km/h</span>
+            <span className="text-xs font-normal text-slate-300">km/h</span>
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-slate-300 font-medium pt-1">
-            <Compass className="w-3.5 h-3.5 text-cyan-400" />
+          <div className="flex items-center gap-1.5 text-xs text-slate-200 font-medium pt-0.5">
+            <Compass className="w-3.5 h-3.5 text-cyan-300" />
             <span>Rumo: {consensusWindDir}</span>
           </div>
           <div className="text-[11px] text-slate-400">
@@ -106,15 +106,15 @@ export const WeatherMetricsGrid: React.FC<WeatherMetricsGridProps> = ({
         </div>
 
         {/* 3. Sensação Térmica */}
-        <div className="glass-card rounded-2xl p-4 border border-white/5 space-y-2">
-          <div className="flex items-center justify-between text-slate-400 text-xs">
-            <span>Sensação Térmica</span>
-            <ThermometerSnowflake className="w-4 h-4 text-purple-400" />
+        <div className="living-glass-card rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-white/15 space-y-2">
+          <div className="flex items-center justify-between text-slate-300 text-xs">
+            <span className="font-semibold">Sensação Térmica</span>
+            <ThermometerSnowflake className="w-4 h-4 text-purple-300" />
           </div>
-          <div className="text-2xl font-extrabold text-white">
+          <div className="text-2xl sm:text-3xl font-black text-white">
             {displayTemp(feelsLike)}
           </div>
-          <div className="text-xs text-slate-300 pt-1">
+          <div className="text-xs text-slate-200 pt-0.5 font-medium">
             Real: {displayTemp(consensusTemp)}
           </div>
           <div className="text-[11px] text-slate-400">
@@ -127,36 +127,36 @@ export const WeatherMetricsGrid: React.FC<WeatherMetricsGridProps> = ({
         </div>
 
         {/* 4. Índice UV */}
-        <div className="glass-card rounded-2xl p-4 border border-white/5 space-y-2">
-          <div className="flex items-center justify-between text-slate-400 text-xs">
-            <span>Índice UV</span>
-            <Sun className="w-4 h-4 text-amber-400" />
+        <div className="living-glass-card rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-white/15 space-y-2">
+          <div className="flex items-center justify-between text-slate-300 text-xs">
+            <span className="font-semibold">Índice UV</span>
+            <Sun className="w-4 h-4 text-amber-300" />
           </div>
-          <div className="text-2xl font-extrabold text-white">
+          <div className="text-2xl sm:text-3xl font-black text-white">
             {consensusUV}
           </div>
-          <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+          <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
             <div
-              className="bg-amber-400 h-1.5 rounded-full transition-all duration-500"
+              className="bg-gradient-to-r from-amber-400 to-rose-400 h-1.5 rounded-full transition-all duration-500 shadow-[0_0_8px_#f59e0b]"
               style={{ width: `${Math.min(100, (consensusUV / 11) * 100)}%` }}
             />
           </div>
-          <div className={`text-[11px] font-medium ${uv.color}`}>
+          <div className={`text-[11px] font-bold ${uv.color}`}>
             {uv.label}
           </div>
         </div>
 
-        {/* 5. Pressão Barométrica */}
-        <div className="glass-card rounded-2xl p-4 border border-white/5 space-y-2">
-          <div className="flex items-center justify-between text-slate-400 text-xs">
-            <span>Pressão</span>
-            <Gauge className="w-4 h-4 text-teal-400" />
+        {/* 5. Pressão Barométrica (col-span-2 on mobile for balanced grid) */}
+        <div className="living-glass-card rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-white/15 space-y-2 col-span-2 sm:col-span-1">
+          <div className="flex items-center justify-between text-slate-300 text-xs">
+            <span className="font-semibold">Pressão Atmosférica</span>
+            <Gauge className="w-4 h-4 text-teal-300" />
           </div>
-          <div className="text-2xl font-extrabold text-white flex items-baseline gap-1">
+          <div className="text-2xl sm:text-3xl font-black text-white flex items-baseline gap-1">
             <span>{consensusPressure}</span>
-            <span className="text-xs font-normal text-slate-400">hPa</span>
+            <span className="text-xs font-normal text-slate-300">hPa</span>
           </div>
-          <div className="text-xs text-slate-300 pt-1">
+          <div className="text-xs text-slate-200 pt-0.5 font-medium">
             Nível do mar padrão
           </div>
           <div className="text-[11px] text-slate-400">

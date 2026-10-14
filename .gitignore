@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+*.tmp
+*.keystore
+*.jks
+.env
+.env.*
+!.env.example

@@ -19,7 +19,7 @@ export interface ModelSource {
   name: string;
   modelDescription: string;
   countryOrigin: string;
-  color: string; // Hex or tailwind class
+  color: string;
   badgeColor: string;
   temp: number;
   feelsLike?: number;
@@ -29,10 +29,54 @@ export interface ModelSource {
   rainProb: number; // %
   weatherCode: number;
   conditionText: string;
-  diffFromConsensus?: number; // e.g. +0.5 or -0.2
+  diffFromConsensus?: number;
   status: 'online' | 'error' | 'disabled';
   errorMsg?: string;
   hourly: HourlyForecastPoint[];
+}
+
+export interface HourlyDataPoint {
+  time: string;
+  hour: string; // "00:00"
+  displayHour: string;
+  temp: number;
+  feelsLike: number;
+  rainProb: number;
+  precipitation: number; // mm
+  windSpeed: number; // km/h
+  windGust?: number; // km/h (rajada de vento)
+  windDirection?: number; // degrees 0-360
+  humidity: number; // %
+  dewPoint?: number; // °C (ponto de orvalho)
+  cloudCover: number; // %
+  pressure: number; // hPa
+  uvIndex: number;
+  visibility: number; // km
+  weatherCode: number;
+  aqi?: number; // Índice de qualidade do ar (0-500)
+  pollutants?: {
+    pm2_5: number;
+    pm10: number;
+    o3: number;
+    no2: number;
+    co: number;
+    so2: number;
+  };
+}
+
+export interface DayForecast {
+  date: string; // "12/10"
+  fullDate: string; // "2026-10-12"
+  dayNumber: number; // 12
+  dayLabel: string; // "Ontem", "Hoje", "ter.", etc.
+  sunrise: string; // "05:36"
+  sunset: string; // "18:09"
+  minTemp: number;
+  maxTemp: number;
+  rainProb: number;
+  weatherCode: number;
+  conditionText: string;
+  hourly: HourlyDataPoint[];
 }
 
 export interface ConsensusData {
@@ -41,8 +85,8 @@ export interface ConsensusData {
   consensusTemp: number;
   medianTemp: number;
   feelsLike: number;
-  divergence: number; // Standard deviation
-  confidenceScore: number; // 0 - 100
+  divergence: number;
+  confidenceScore: number;
   confidenceLevel: 'high' | 'moderate' | 'low';
   confidenceText: string;
   consensusHumidity: number;
@@ -61,32 +105,28 @@ export interface ConsensusData {
     rainProb: number;
     modelTemps: Record<string, number>;
   }>;
-  dailyForecast: Array<{
-    date: string;
-    dayOfWeek: string;
-    minTemp: number;
-    maxTemp: number;
-    rainProb: number;
-    weatherCode: number;
-    conditionText: string;
-  }>;
+  dailyForecast: DayForecast[];
 }
 
 export interface AppSettings {
   tempUnit: 'C' | 'F';
+  showModelComparison: boolean; // default: false
   enabledModels: Record<ModelId, boolean>;
   openWeatherApiKey?: string;
 }
 
+export const SYSTEM_OPENWEATHER_KEY = import.meta.env.VITE_OPENWEATHER_KEY || '';
+
 export const DEFAULT_SETTINGS: AppSettings = {
   tempUnit: 'C',
+  showModelComparison: false, // Padrão: desativado conforme solicitado
   enabledModels: {
     ecmwf: true,
     gfs: true,
     icon: true,
     gem: true,
     wttr: true,
-    openweather: false,
+    openweather: true,
   },
-  openWeatherApiKey: '',
+  openWeatherApiKey: SYSTEM_OPENWEATHER_KEY,
 };

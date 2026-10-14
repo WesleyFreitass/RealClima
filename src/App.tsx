@@ -4,26 +4,86 @@ import { HeroConsensusCard } from './components/HeroConsensusCard';
 import { ModelComparisonGrid } from './components/ModelComparisonGrid';
 import { ForecastChart } from './components/ForecastChart';
 import { WeatherMetricsGrid } from './components/WeatherMetricsGrid';
-import { DailyForecastCard } from './components/DailyForecastCard';
-import { WeatherRadarMap } from './components/WeatherRadarMap';
+import { InteractiveTimeline } from './components/InteractiveTimeline';
+// import { WeatherRadarMap } from './components/WeatherRadarMap';
+import { OpenWeatherLayersMap } from './components/OpenWeatherLayersMap';
 import { SettingsModal } from './components/SettingsModal';
 import { InfoModal } from './components/InfoModal';
 import { fetchWeatherEnsemble } from './services/weatherEnsemble';
 import { POPULAR_CITIES, reverseGeocode } from './services/geocoding';
 import type { LocationData, ConsensusData, AppSettings } from './types/weather';
 import { DEFAULT_SETTINGS } from './types/weather';
-import { AlertCircle, Compass } from 'lucide-react';
+import { AlertCircle, CloudSun, Clock, Layers, RefreshCw, Settings } from 'lucide-react';
 import './App.css';
 
 export function App() {
-  const [currentLocation, setCurrentLocation] = useState<LocationData>(
-    POPULAR_CITIES[0] // São Paulo
-  );
+  const [defaultCity, setDefaultCity] = useState<LocationData | null>(() => {
+    try {
+      const saved = localStorage.getItem('realclima_default_city');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.warn('Erro ao carregar cidade padrão:', e);
+    }
+    return null;
+  });
+
+  const [currentLocation, setCurrentLocation] = useState<LocationData>(() => {
+    try {
+      const savedDefault = localStorage.getItem('realclima_default_city');
+      if (savedDefault) {
+        return JSON.parse(savedDefault);
+      }
+      const savedLast = localStorage.getItem('realclima_last_city');
+      if (savedLast) {
+        return JSON.parse(savedLast);
+      }
+    } catch (e) {
+      console.warn('Erro ao carregar cidade inicial:', e);
+    }
+    return POPULAR_CITIES[0]; // São Paulo fallback
+  });
+
+  // Salvar última cidade visualizada
+  useEffect(() => {
+    try {
+      localStorage.setItem('realclima_last_city', JSON.stringify(currentLocation));
+    } catch (e) {
+      console.warn('Erro ao salvar última cidade:', e);
+    }
+  }, [currentLocation]);
+
+  const handleSetDefaultCity = (loc: LocationData) => {
+    try {
+      if (
+        defaultCity &&
+        (defaultCity.name.toLowerCase() === loc.name.toLowerCase() ||
+          (Math.abs(defaultCity.lat - loc.lat) < 0.01 &&
+            Math.abs(defaultCity.lon - loc.lon) < 0.01))
+      ) {
+        localStorage.removeItem('realclima_default_city');
+        setDefaultCity(null);
+      } else {
+        localStorage.setItem('realclima_default_city', JSON.stringify(loc));
+        setDefaultCity(loc);
+      }
+    } catch (e) {
+      console.warn('Erro ao salvar cidade padrão:', e);
+    }
+  };
 
   const [settings, setSettings] = useState<AppSettings>(() => {
     try {
       const saved = localStorage.getItem('clima_settings');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          ...DEFAULT_SETTINGS,
+          ...parsed,
+          showModelComparison:
+            parsed.showModelComparison ?? DEFAULT_SETTINGS.showModelComparison,
+          openWeatherApiKey: DEFAULT_SETTINGS.openWeatherApiKey,
+        };
+      }
     } catch (e) {
       console.warn('Erro ao carregar settings:', e);
     }
@@ -109,24 +169,76 @@ export function App() {
     }
   };
 
+  // Living Sky atmospheric condition calculation
+  const isRain = data
+    ? (data.consensusWeatherCode >= 51 && data.consensusWeatherCode <= 67) ||
+      (data.consensusWeatherCode >= 80 && data.consensusWeatherCode <= 82) ||
+      data.consensusRainProb > 30
+    : false;
+
+  const skyBackgroundStyle = isRain
+    ? 'bg-gradient-to-b from-[#0f172a] via-[#1e293b] to-[#090d16]'
+    : 'bg-gradient-to-b from-[#0b1329] via-[#111f38] to-[#080d1a]';
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-black">
+    <div className="min-h-screen text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-black relative overflow-x-hidden">
+      {/* 1. Living Sky Atmospheric Canvas (Full-Bleed Fixed Backdrop) */}
+      <div
+        className={`fixed inset-0 pointer-events-none z-0 sky-transition ${skyBackgroundStyle}`}
+      >
+        {/* Sun / Light Bloom */}
+        <div className="absolute top-6 right-1/4 w-[36rem] h-[36rem] rounded-full bg-cyan-400/10 blur-[130px] pointer-events-none" />
+        <div className="absolute bottom-0 inset-x-0 h-[28rem] bg-gradient-to-t from-[#020617] via-cyan-950/15 to-transparent pointer-events-none" />
+
+        {/* Horizon layered silhouette */}
+        <div className="absolute bottom-0 inset-x-0 h-44 opacity-25 pointer-events-none">
+          <svg
+            viewBox="0 0 1200 200"
+            preserveAspectRatio="none"
+            className="w-full h-full fill-slate-950"
+          >
+            <path d="M0,200 L0,120 L80,100 L160,135 L260,85 L360,140 L480,70 L580,130 L700,90 L820,145 L940,65 L1060,125 L1200,95 L1200,200 Z" />
+          </svg>
+        </div>
+
+        {/* Volumetric ambient mist */}
+        <div className="absolute bottom-16 inset-x-0 h-32 bg-gradient-to-t from-cyan-900/10 to-transparent blur-xl animate-mist pointer-events-none" />
+      </div>
+
+      {/* 2. Ambient Falling Rain Needles (when rain occurs) */}
+      {isRain && (
+        <div className="fixed inset-0 pointer-events-none z-10 overflow-hidden">
+          <div className="sky-rain-drop" style={{ left: '8%', height: '28px', animation: 'sky-rain-fall 0.95s linear infinite 0.1s' }} />
+          <div className="sky-rain-drop" style={{ left: '19%', height: '35px', animation: 'sky-rain-fall 0.85s linear infinite 0.4s' }} />
+          <div className="sky-rain-drop" style={{ left: '33%', height: '24px', animation: 'sky-rain-fall 1.05s linear infinite 0.2s' }} />
+          <div className="sky-rain-drop" style={{ left: '47%', height: '32px', animation: 'sky-rain-fall 0.90s linear infinite 0.6s' }} />
+          <div className="sky-rain-drop" style={{ left: '61%', height: '30px', animation: 'sky-rain-fall 0.82s linear infinite 0.15s' }} />
+          <div className="sky-rain-drop" style={{ left: '75%', height: '26px', animation: 'sky-rain-fall 1.10s linear infinite 0.5s' }} />
+          <div className="sky-rain-drop" style={{ left: '86%', height: '36px', animation: 'sky-rain-fall 0.88s linear infinite 0.3s' }} />
+          <div className="sky-rain-drop" style={{ left: '94%', height: '22px', animation: 'sky-rain-fall 1.00s linear infinite 0.7s' }} />
+        </div>
+      )}
+
       {/* Top Navbar */}
-      <Navbar
-        currentLocation={currentLocation}
-        onSelectLocation={setCurrentLocation}
-        onUseCurrentLocation={handleUseCurrentLocation}
-        onRefresh={loadForecast}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-        onOpenInfo={() => setIsInfoOpen(true)}
-        isLoading={isLoading}
-      />
+      <div className="relative z-30">
+        <Navbar
+          currentLocation={currentLocation}
+          defaultCity={defaultCity}
+          onSelectLocation={setCurrentLocation}
+          onSetDefaultCity={handleSetDefaultCity}
+          onUseCurrentLocation={handleUseCurrentLocation}
+          onRefresh={loadForecast}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenInfo={() => setIsInfoOpen(true)}
+          isLoading={isLoading}
+        />
+      </div>
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-28 md:pb-8 space-y-6 sm:space-y-8 relative z-20">
         {/* Error State */}
         {error && (
-          <div className="p-5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 flex items-start justify-between gap-4">
+          <div className="p-4 sm:p-5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
               <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
               <div>
@@ -163,51 +275,111 @@ export function App() {
         {data && (
           <>
             {/* 1. Hero Consensus Card */}
-            <HeroConsensusCard data={data} tempUnit={settings.tempUnit} />
+            <div id="section-hero">
+              <HeroConsensusCard data={data} tempUnit={settings.tempUnit} />
+            </div>
 
-            {/* 2. Side-by-Side Model Comparison Cards */}
-            <ModelComparisonGrid
-              models={data.models}
-              tempUnit={settings.tempUnit}
-            />
-
-            {/* 3. 24-Hour Multi-Model Forecast Chart */}
-            <ForecastChart data={data} tempUnit={settings.tempUnit} />
-
-            {/* 4. Live Precipitation Radar Map */}
-            <WeatherRadarMap
-              location={currentLocation}
-              temp={data.consensusTemp}
-            />
-
-            {/* 5. Atmospheric Metrics Grid */}
+            {/* 2. Atmospheric Metrics Grid (Logo abaixo do primeiro card) */}
             <WeatherMetricsGrid data={data} tempUnit={settings.tempUnit} />
 
-            {/* 6. 7-Day Outlook */}
-            <DailyForecastCard data={data} tempUnit={settings.tempUnit} />
+            {/* 3 & 4. Model Comparison Cards & Divergence Curves (Condicional às Configurações - padrão: desativado) */}
+            {settings.showModelComparison && (
+              <>
+                <ModelComparisonGrid
+                  models={data.models}
+                  tempUnit={settings.tempUnit}
+                />
+                <ForecastChart data={data} tempUnit={settings.tempUnit} />
+              </>
+            )}
+
+            {/* 5. Interactive Hourly & Multi-Day Timeline */}
+            <div id="section-timeline">
+              <InteractiveTimeline
+                days={data.dailyForecast}
+                tempUnit={settings.tempUnit}
+              />
+            </div>
+
+            {/* 7. OpenWeather Multi-Layer Atmospheric Map */}
+            <div id="section-radar">
+              <OpenWeatherLayersMap
+                location={currentLocation}
+                apiKey={settings.openWeatherApiKey}
+              />
+            </div>
           </>
         )}
       </main>
 
+      {/* Mobile Floating Bottom Navigation Dock (md:hidden) */}
+      <nav className="md:hidden fixed bottom-3 inset-x-3 z-40 living-glass rounded-2xl border border-white/20 shadow-2xl backdrop-blur-2xl px-2 py-1.5 flex items-center justify-around">
+        <button
+          onClick={() => {
+            document.getElementById('section-hero')?.scrollIntoView({ behavior: 'smooth' });
+          }}
+          className="flex flex-col items-center gap-0.5 py-1 px-2.5 text-slate-300 hover:text-cyan-300 active:scale-95 transition-all"
+        >
+          <CloudSun className="w-5 h-5 text-cyan-400" />
+          <span className="text-[10px] font-semibold">Agora</span>
+        </button>
+
+        <button
+          onClick={() => {
+            document.getElementById('section-timeline')?.scrollIntoView({ behavior: 'smooth' });
+          }}
+          className="flex flex-col items-center gap-0.5 py-1 px-2.5 text-slate-300 hover:text-cyan-300 active:scale-95 transition-all"
+        >
+          <Clock className="w-5 h-5 text-sky-400" />
+          <span className="text-[10px] font-semibold">Previsão</span>
+        </button>
+
+        <button
+          onClick={() => {
+            document.getElementById('section-radar')?.scrollIntoView({ behavior: 'smooth' });
+          }}
+          className="flex flex-col items-center gap-0.5 py-1 px-2.5 text-slate-300 hover:text-cyan-300 active:scale-95 transition-all"
+        >
+          <Layers className="w-5 h-5 text-indigo-400" />
+          <span className="text-[10px] font-semibold">Radar</span>
+        </button>
+
+        <button
+          onClick={loadForecast}
+          disabled={isLoading}
+          className="flex flex-col items-center gap-0.5 py-1 px-2.5 text-slate-300 hover:text-cyan-300 active:scale-95 transition-all disabled:opacity-50"
+        >
+          <RefreshCw className={`w-5 h-5 text-teal-400 ${isLoading ? 'animate-spin' : ''}`} />
+          <span className="text-[10px] font-semibold">Atualizar</span>
+        </button>
+
+        <button
+          onClick={() => setIsSettingsOpen(true)}
+          className="flex flex-col items-center gap-0.5 py-1 px-2.5 text-slate-300 hover:text-cyan-300 active:scale-95 transition-all"
+        >
+          <Settings className="w-5 h-5 text-slate-400" />
+          <span className="text-[10px] font-semibold">Ajustes</span>
+        </button>
+      </nav>
+
       {/* Footer with Attribution */}
-      <footer className="mt-16 border-t border-white/10 bg-slate-950/90 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+      <footer className="mt-12 sm:mt-16 border-t border-white/10 living-glass backdrop-blur-2xl py-8 pb-24 md:pb-8 relative z-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-400">
           <div className="flex items-center gap-2">
-            <Compass className="w-4 h-4 text-cyan-400" />
-            <span className="font-semibold text-slate-400">
-              ClimaConsenso
+            <span className="font-bold text-white tracking-wide">
+              RealClima
             </span>
-            <span>— Previsões agregadas por modelos numéricos</span>
+            <span>— Previsões agregadas de alta precisão por consenso numérico</span>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px]">
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-slate-300">
             <span>Modelos: ECMWF IFS • NOAA GFS • DWD ICON • CMC GEM</span>
             <span>•</span>
-            <span>APIs: Open-Meteo & wttr.in</span>
+            <span>APIs: Open-Meteo Multi-Model & Air Quality • wttr.in • OpenWeatherMap • OpenStreetMap / Nominatim</span>
           </div>
 
           <div>
-            <span>Desenvolvido com React, TypeScript & Tailwind</span>
+            <span className="text-slate-400">RealClima © Céu Vivo • React & Tailwind</span>
           </div>
         </div>
       </footer>
