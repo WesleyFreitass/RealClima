@@ -7,6 +7,7 @@ export interface AppVersionInfo {
   releaseNotes?: string;
   downloadUrl?: string;
   bundleUrl?: string;
+  checksum?: string;
   publishedAt?: string;
   mandatory?: boolean;
 }
@@ -198,7 +199,8 @@ export async function notifyAppReadyIfNative() {
 export async function downloadAndApplyOta(
   bundleUrl: string,
   version: string,
-  applyImmediately = false
+  applyImmediately = false,
+  checksum?: string
 ): Promise<{ success: boolean; error?: string }> {
   if (!Capacitor.isNativePlatform()) {
     return { success: false, error: 'Apenas em plataforma nativa' };
@@ -206,10 +208,14 @@ export async function downloadAndApplyOta(
 
   try {
     console.log(`[LiveUpdates] Iniciando download do bundle ${version}...`);
-    const bundle = await CapacitorUpdater.download({
+    const downloadOpts: any = {
       url: bundleUrl,
       version: version,
-    });
+    };
+    if (checksum) {
+      downloadOpts.checksum = checksum;
+    }
+    const bundle = await CapacitorUpdater.download(downloadOpts);
     console.log('[LiveUpdates] Bundle baixado com sucesso:', bundle);
 
     if (applyImmediately) {

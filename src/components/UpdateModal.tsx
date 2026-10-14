@@ -30,13 +30,18 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
     setIsApplying(true);
     setApplyError(null);
     try {
-      const res = await downloadAndApplyOta(updateInfo.bundleUrl, updateInfo.version, true);
+      const res = await downloadAndApplyOta(
+        updateInfo.bundleUrl,
+        updateInfo.version,
+        true,
+        updateInfo.checksum
+      );
       if (!res.success) {
-        setApplyError(res.error || 'Falha ao aplicar atualização instantânea');
+        setApplyError(res.error || 'Falha ao aplicar atualização instantânea. Use o botão abaixo para baixar o APK completo.');
         setIsApplying(false);
       }
     } catch (err: any) {
-      setApplyError(err?.message || 'Erro inesperado');
+      setApplyError(err?.message || 'Erro inesperado ao atualizar. Use o botão abaixo para baixar o APK.');
       setIsApplying(false);
     }
   };
@@ -139,7 +144,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
 
         {/* Ações */}
         <div className="pt-2 flex flex-col sm:flex-row gap-2 relative z-10">
-          {isOta ? (
+          {isOta && !applyError ? (
             <button
               onClick={handleInstantUpdate}
               disabled={isApplying}
@@ -173,7 +178,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             disabled={isApplying}
             className="py-3 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-medium text-sm transition-colors cursor-pointer disabled:opacity-50"
           >
-            {isOta ? 'Aplicar depois' : 'Depois'}
+            {isOta && !applyError ? 'Aplicar depois' : 'Fechar'}
           </button>
         </div>
       </div>
