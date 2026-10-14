@@ -24,6 +24,7 @@ dist-ssr
 *.sw?
 *.tmp
 *.keystore
+!android/app/realclima-release.keystore
 *.jks
 .env
 .env.*
