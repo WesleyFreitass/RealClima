@@ -16,6 +16,7 @@ import {
   CloudRain,
   CloudLightning,
   CloudSnow,
+  Download,
 } from 'lucide-react';
 import type { LocationData } from '../types/weather';
 import { searchCities, POPULAR_CITIES } from '../services/geocoding';
@@ -261,6 +262,17 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <HelpCircle className="w-4 h-4" />
           </button>
+
+          {/* Download APK Button */}
+          <a
+            href="/realclima.apk"
+            download="RealClima.apk"
+            title="Baixar RealClima para Android (APK Oficial)"
+            className="p-2 sm:p-2.5 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 hover:from-emerald-500/30 hover:to-teal-500/30 border border-emerald-400/40 text-emerald-300 hover:text-emerald-200 transition-all flex items-center gap-1.5 text-xs sm:text-sm backdrop-blur-md active:scale-95 shadow-sm"
+          >
+            <Download className="w-4 h-4 text-emerald-400" />
+            <span className="hidden sm:inline text-xs font-bold">Baixar APK</span>
+          </a>
 
           {/* Settings Modal Button */}
           <button

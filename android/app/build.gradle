@@ -18,15 +18,20 @@ android {
     }
     signingConfigs {
         release {
-            storeFile file('realclima-release.keystore')
-            storePassword 'realclima2026'
-            keyAlias 'realclima'
-            keyPassword 'realclima2026'
+            def keystoreFile = file('realclima-release.keystore')
+            if (keystoreFile.exists()) {
+                storeFile keystoreFile
+                storePassword 'realclima2026'
+                keyAlias 'realclima'
+                keyPassword 'realclima2026'
+            }
         }
     }
     buildTypes {
         release {
-            signingConfig signingConfigs.release
+            if (file('realclima-release.keystore').exists()) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
