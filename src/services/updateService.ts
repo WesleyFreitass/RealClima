@@ -1,8 +1,12 @@
+import { Capacitor } from '@capacitor/core';
+import { CapacitorUpdater } from '@capgo/capacitor-updater';
+
 export interface AppVersionInfo {
   version: string;
   versionCode: number;
   releaseNotes?: string;
-  downloadUrl: string;
+  downloadUrl?: string;
+  bundleUrl?: string;
   publishedAt?: string;
   mandatory?: boolean;
 }
@@ -12,11 +16,12 @@ export interface CheckUpdateResult {
   currentVersion: string;
   latestVersion: string;
   versionInfo?: AppVersionInfo;
+  isOtaAvailable?: boolean;
   error?: string;
 }
 
-export const CURRENT_VERSION = '1.0.0';
-export const CURRENT_BUILD = 1;
+export const CURRENT_VERSION = '1.0.1';
+export const CURRENT_BUILD = 2;
 
 const VERSION_JSON_URL =
   'https://raw.githubusercontent.com/WesleyFreitass/RealClima/main/version.json';
@@ -161,3 +166,52 @@ export function dismissUpdateNotification(version: string) {
     // Ignora erro de localStorage
   }
 }
+
+/**
+ * Notifica ao plugin nativo Capgo que o aplicativo iniciou com sucesso.
+ * Isso evita rollbacks automáticos após atualizações.
+ */
+export async function notifyAppReadyIfNative() {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      await CapacitorUpdater.notifyAppReady();
+      console.log('[LiveUpdates] App ready confirmado.');
+    } catch (err) {
+      console.warn('[LiveUpdates] notifyAppReady aviso:', err);
+    }
+  }
+}
+
+/**
+ * Baixa e aplica uma atualização OTA (Over-The-Air) silenciosamente ou imediatamente.
+ */
+export async function downloadAndApplyOta(
+  bundleUrl: string,
+  version: string,
+  applyImmediately = false
+): Promise<{ success: boolean; error?: string }> {
+  if (!Capacitor.isNativePlatform()) {
+    return { success: false, error: 'Apenas em plataforma nativa' };
+  }
+
+  try {
+    console.log(`[LiveUpdates] Iniciando download do bundle ${version}...`);
+    const bundle = await CapacitorUpdater.download({
+      url: bundleUrl,
+      version: version,
+    });
+    console.log('[LiveUpdates] Bundle baixado com sucesso:', bundle);
+
+    if (applyImmediately) {
+      await CapacitorUpdater.set(bundle);
+    } else {
+      await CapacitorUpdater.next(bundle);
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('[LiveUpdates] Erro no download/aplicação:', err);
+    return { success: false, error: err?.message || String(err) };
+  }
+}
+

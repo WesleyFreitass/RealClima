@@ -12,8 +12,9 @@ import { InfoModal } from './components/InfoModal';
 import { UpdateModal } from './components/UpdateModal';
 import { fetchWeatherEnsemble } from './services/weatherEnsemble';
 import { POPULAR_CITIES, reverseGeocode } from './services/geocoding';
-import { checkForAppUpdates, CURRENT_VERSION, type AppVersionInfo } from './services/updateService';
+import { checkForAppUpdates, notifyAppReadyIfNative, downloadAndApplyOta, CURRENT_VERSION, type AppVersionInfo } from './services/updateService';
 import { syncAndroidWidget } from './services/widgetSync';
+import { Capacitor } from '@capacitor/core';
 import type { LocationData, ConsensusData, AppSettings } from './types/weather';
 import { DEFAULT_SETTINGS } from './types/weather';
 import { AlertCircle, CloudSun, Clock, Layers, RefreshCw, Settings } from 'lucide-react';
@@ -102,6 +103,11 @@ export function App() {
   const [updateInfo, setUpdateInfo] = useState<AppVersionInfo | null>(null);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
 
+  // Confirmação de boot estável para o motor de Live Updates OTA
+  useEffect(() => {
+    notifyAppReadyIfNative();
+  }, []);
+
   // Verificação automática de atualizações do app ao iniciar
   useEffect(() => {
     const timer = setTimeout(async () => {
@@ -109,6 +115,10 @@ export function App() {
         const res = await checkForAppUpdates(false);
         if (res.hasUpdate && res.versionInfo) {
           setUpdateInfo(res.versionInfo);
+          // Se houver bundle OTA e estiver no app nativo, inicia download silencioso em segundo plano
+          if (res.versionInfo.bundleUrl && Capacitor.isNativePlatform()) {
+            downloadAndApplyOta(res.versionInfo.bundleUrl, res.versionInfo.version, false);
+          }
           setIsUpdateModalOpen(true);
         }
       } catch (e) {

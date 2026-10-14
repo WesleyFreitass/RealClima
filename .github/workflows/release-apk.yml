@@ -34,6 +34,12 @@ jobs:
       - name: Build Web de Produção
         run: npm run build
 
+      - name: Gerar Bundle OTA (Live Updates)
+        run: |
+          cd dist
+          zip -r ../dist.zip . -x "*.apk"
+          cd ..
+
       - name: Sincronizar com Android (Capacitor)
         run: npx cap sync android
 
@@ -57,7 +63,7 @@ jobs:
           cp android/app/build/outputs/apk/release/app-release.apk app-release.apk
           cp android/app/build/outputs/apk/debug/app-debug.apk app-debug.apk
 
-      - name: Criar GitHub Release e Anexar APK
+      - name: Criar GitHub Release e Anexar APK e Bundle OTA
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name || inputs.tag_name }}
@@ -65,6 +71,7 @@ jobs:
           draft: false
           prerelease: false
           files: |
+            dist.zip
             realclima-${{ github.ref_name || inputs.tag_name }}-release.apk
             app-release.apk
             app-debug.apk

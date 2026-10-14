@@ -1,7 +1,8 @@
-import React from 'react';
-import { DownloadCloud, X, Sparkles, ExternalLink, ArrowRight, ShieldCheck } from 'lucide-react';
+import React, { useState } from 'react';
+import { DownloadCloud, X, Sparkles, ExternalLink, ArrowRight, ShieldCheck, Zap, Loader2 } from 'lucide-react';
 import type { AppVersionInfo } from '../services/updateService';
-import { dismissUpdateNotification } from '../services/updateService';
+import { dismissUpdateNotification, downloadAndApplyOta } from '../services/updateService';
+import { Capacitor } from '@capacitor/core';
 
 interface UpdateModalProps {
   isOpen: boolean;
@@ -16,7 +17,28 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
   updateInfo,
   currentVersion,
 }) => {
+  const [isApplying, setIsApplying] = useState(false);
+  const [applyError, setApplyError] = useState<string | null>(null);
+
   if (!isOpen || !updateInfo) return null;
+
+  const isOta = Boolean(updateInfo.bundleUrl && Capacitor.isNativePlatform());
+
+  const handleInstantUpdate = async () => {
+    if (!updateInfo.bundleUrl) return;
+    setIsApplying(true);
+    setApplyError(null);
+    try {
+      const res = await downloadAndApplyOta(updateInfo.bundleUrl, updateInfo.version, true);
+      if (!res.success) {
+        setApplyError(res.error || 'Falha ao aplicar atualização instantânea');
+        setIsApplying(false);
+      }
+    } catch (err: any) {
+      setApplyError(err?.message || 'Erro inesperado');
+      setIsApplying(false);
+    }
+  };
 
   const handleDownload = () => {
     if (updateInfo.downloadUrl) {
@@ -98,28 +120,59 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
           </div>
         </div>
 
-        {/* Informação de segurança */}
+        {/* Informação de segurança / modo de atualização */}
         <div className="flex items-center gap-2 text-[11px] text-emerald-400/90 relative z-10">
           <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-400" />
-          <span>Distribuição oficial e segura via GitHub</span>
+          <span>
+            {isOta
+              ? 'Atualização instantânea direta (sem precisar reinstalar APK)'
+              : 'Distribuição oficial e segura via GitHub'}
+          </span>
         </div>
+
+        {applyError && (
+          <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs relative z-10">
+            {applyError}
+          </div>
+        )}
 
         {/* Ações */}
         <div className="pt-2 flex flex-col sm:flex-row gap-2 relative z-10">
-          <button
-            onClick={handleDownload}
-            className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/25 transition-all active:scale-[0.98] cursor-pointer"
-          >
-            <DownloadCloud className="w-4 h-4" />
-            <span>Baixar Atualização (APK)</span>
-            <ExternalLink className="w-3.5 h-3.5 opacity-70" />
-          </button>
+          {isOta ? (
+            <button
+              onClick={handleInstantUpdate}
+              disabled={isApplying}
+              className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-black font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/25 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
+            >
+              {isApplying ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-black" />
+                  <span>Aplicando Atualização...</span>
+                </>
+              ) : (
+                <>
+                  <Zap className="w-4 h-4 fill-black text-black" />
+                  <span>Atualizar Agora</span>
+                </>
+              )}
+            </button>
+          ) : (
+            <button
+              onClick={handleDownload}
+              className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/25 transition-all active:scale-[0.98] cursor-pointer"
+            >
+              <DownloadCloud className="w-4 h-4" />
+              <span>Baixar Atualização (APK)</span>
+              <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+            </button>
+          )}
 
           <button
             onClick={handleDismiss}
-            className="py-3 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-medium text-sm transition-colors cursor-pointer"
+            disabled={isApplying}
+            className="py-3 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-medium text-sm transition-colors cursor-pointer disabled:opacity-50"
           >
-            Depois
+            {isOta ? 'Aplicar depois' : 'Depois'}
           </button>
         </div>
       </div>
