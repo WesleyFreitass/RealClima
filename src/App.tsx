@@ -13,6 +13,7 @@ import { UpdateModal } from './components/UpdateModal';
 import { fetchWeatherEnsemble } from './services/weatherEnsemble';
 import { POPULAR_CITIES, reverseGeocode } from './services/geocoding';
 import { checkForAppUpdates, CURRENT_VERSION, type AppVersionInfo } from './services/updateService';
+import { syncAndroidWidget } from './services/widgetSync';
 import type { LocationData, ConsensusData, AppSettings } from './types/weather';
 import { DEFAULT_SETTINGS } from './types/weather';
 import { AlertCircle, CloudSun, Clock, Layers, RefreshCw, Settings } from 'lucide-react';
@@ -129,6 +130,7 @@ export function App() {
         settings,
       });
       setData(result);
+      syncAndroidWidget(currentLocation, result);
     } catch (err: any) {
       console.error('Falha ao carregar ensemble:', err);
       setError(

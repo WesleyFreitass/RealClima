@@ -18,6 +18,7 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Calendar;
+import java.util.Locale;
 import java.util.concurrent.Executors;
 
 /**
@@ -76,20 +77,24 @@ public class CeuVivoWidget extends AppWidgetProvider {
     private static void fetchLatestWeatherAsync(Context context, AppWidgetManager appWidgetManager, int appWidgetId) {
         Executors.newSingleThreadExecutor().execute(() -> {
             try {
-                // Posição padrão ou última cidade salva
-                double lat = -23.5505;
-                double lon = -46.6333;
-                String cityName = "São Paulo";
+                // Recupera a cidade e coordenadas salvas nas preferências ou fallback São Paulo
+                SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+                double lat = (double) prefs.getFloat("lat", -23.5505f);
+                double lon = (double) prefs.getFloat("lon", -46.6333f);
+                String cityName = prefs.getString("city", "São Paulo");
 
+                // CRUCIAL: Locale.US para garantir ponto '.' em vez de vírgula ',' na latitude/longitude
                 String apiUrl = String.format(
+                        Locale.US,
                         "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f&current=temperature_2m,weather_code,is_day&hourly=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=2",
                         lat, lon
                 );
 
                 URL url = new URL(apiUrl);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setConnectTimeout(6000);
-                conn.setReadTimeout(6000);
+                conn.setRequestProperty("User-Agent", "RealClima-Android-Widget/1.0");
+                conn.setConnectTimeout(8000);
+                conn.setReadTimeout(8000);
                 conn.setRequestMethod("GET");
 
                 if (conn.getResponseCode() == 200) {
@@ -150,7 +155,6 @@ public class CeuVivoWidget extends AppWidgetProvider {
                     }
 
                     // Salva em cache
-                    SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
                     SharedPreferences.Editor editor = prefs.edit()
                             .putString("city", cityName)
                             .putString("temp", tempStr)

@@ -63,8 +63,18 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
-  // Active 3-dots dropdown menu id
-  const [activeMenuCity, setActiveMenuCity] = useState<string | null>(null);
+  // Helper para verificar se duas localizações são a mesma cidade
+  const isSameCity = (a?: LocationData | null, b?: LocationData | null) => {
+    if (!a || !b) return false;
+    return (
+      a.name.toLowerCase() === b.name.toLowerCase() ||
+      (Math.abs(a.lat - b.lat) < 0.01 && Math.abs(a.lon - b.lon) < 0.01)
+    );
+  };
+
+  // Active 3-dots dropdown menu location and coordinates
+  const [activeMenuCity, setActiveMenuCity] = useState<LocationData | null>(null);
+  const [menuCoords, setMenuCoords] = useState<{ top: number; left: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Weather cache for saved cities (temp, icon, alerts)
@@ -149,6 +159,14 @@ export const Navbar: React.FC<NavbarProps> = ({
     return () => clearTimeout(timer);
   }, [query]);
 
+  // A cidade principal (defaultCity) SEMPRE é a primeira da lista!
+  // As outras cidades ficam organizadas por ordem de acesso recente (MRU).
+  const orderedCities = React.useMemo(() => {
+    if (!defaultCity) return savedCities;
+    const withoutDefault = savedCities.filter((c) => !isSameCity(c, defaultCity));
+    return [defaultCity, ...withoutDefault];
+  }, [savedCities, defaultCity]);
+
   // Click outside listener for search & 3-dots menus
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -156,47 +174,79 @@ export const Navbar: React.FC<NavbarProps> = ({
         setIsOpen(false);
       }
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setActiveMenuCity(null);
+        const isTrigger = (e.target as HTMLElement)?.closest('[data-menu-trigger="true"]');
+        if (!isTrigger) {
+          setActiveMenuCity(null);
+          setMenuCoords(null);
+        }
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // When a city is selected, AUTO-ADD to the cities bar!
+  // Fechar menu ao rolar a página ou redimensionar janela
+  useEffect(() => {
+    const handleScrollOrResize = () => {
+      if (activeMenuCity) {
+        setActiveMenuCity(null);
+        setMenuCoords(null);
+      }
+    };
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+    return () => {
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
+  }, [activeMenuCity]);
+
+  // Quando uma cidade é selecionada: a cidade principal permanece a 1ª, e a acessada assume o topo das demais
   const handleSelect = (loc: LocationData) => {
     onSelectLocation(loc);
     setQuery('');
     setIsOpen(false);
+    setActiveMenuCity(null);
+    setMenuCoords(null);
 
-    // Auto-add to cities bar if not already present
     setSavedCities((prev) => {
-      const exists = prev.some(
-        (c) =>
-          c.name.toLowerCase() === loc.name.toLowerCase() ||
-          (Math.abs(c.lat - loc.lat) < 0.01 && Math.abs(c.lon - loc.lon) < 0.01)
-      );
-      if (exists) return prev;
-      return [loc, ...prev];
+      // Se a selecionada for a cidade principal, ela já é e permanece a 1ª
+      if (defaultCity && isSameCity(loc, defaultCity)) {
+        const rest = prev.filter((c) => !isSameCity(c, defaultCity));
+        return [defaultCity, ...rest];
+      }
+
+      // Se for outra cidade, remove da lista e insere imediatamente após a principal
+      const rest = prev.filter((c) => !isSameCity(c, loc));
+      if (defaultCity) {
+        const restWithoutDefault = rest.filter((c) => !isSameCity(c, defaultCity));
+        return [defaultCity, loc, ...restWithoutDefault];
+      } else {
+        return [loc, ...rest];
+      }
     });
   };
 
   const handleRemoveCity = (loc: LocationData) => {
-    setSavedCities((prev) =>
-      prev.filter(
-        (c) =>
-          c.name.toLowerCase() !== loc.name.toLowerCase() &&
-          Math.abs(c.lat - loc.lat) >= 0.01
-      )
-    );
+    if (defaultCity && isSameCity(loc, defaultCity) && onSetDefaultCity) {
+      onSetDefaultCity(loc); // desfaz como cidade padrão
+    }
+    setSavedCities((prev) => prev.filter((c) => !isSameCity(c, loc)));
     setActiveMenuCity(null);
+    setMenuCoords(null);
   };
 
   const handleSetInitial = (loc: LocationData) => {
     if (onSetDefaultCity) {
       onSetDefaultCity(loc);
     }
+    // Ao fixar como principal, ela assume a 1ª posição instantaneamente
+    setSavedCities((prev) => {
+      const withoutLoc = prev.filter((c) => !isSameCity(c, loc));
+      return [loc, ...withoutLoc];
+    });
     setActiveMenuCity(null);
+    setMenuCoords(null);
   };
 
   // Weather mini icon helper
@@ -358,7 +408,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* 2. Horizontal Scroll of Cities Chips (Directly to the right of search!) */}
         <div className="flex-1 flex items-center gap-2 overflow-x-auto no-scrollbar touch-pan-x py-0.5">
-          {savedCities.map((city) => {
+          {orderedCities.map((city) => {
             const isSelected =
               currentLocation.name.toLowerCase() === city.name.toLowerCase();
             const isInitial =
@@ -374,14 +424,14 @@ export const Navbar: React.FC<NavbarProps> = ({
               alertsCount: isSelected ? currentAlertsCount : 0,
             };
 
-            const isMenuOpen = activeMenuCity === city.name;
-
             return (
               <div
                 key={`${city.name}-${city.lat}-${city.lon}`}
                 className={`relative group shrink-0 inline-flex items-center rounded-xl transition-all border ${
                   isSelected
                     ? 'bg-slate-900 border-cyan-400/50 text-white shadow-md shadow-cyan-500/15'
+                    : isInitial
+                    ? 'bg-slate-900/95 border-emerald-500/40 text-slate-200 hover:text-white hover:bg-slate-800'
                     : 'bg-slate-900/80 border-slate-700/60 text-slate-300 hover:text-white hover:bg-slate-800'
                 }`}
               >
@@ -389,12 +439,23 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   type="button"
                   onClick={() => handleSelect(city)}
-                  className="pl-3 pr-1.5 py-1.5 flex items-center gap-2 text-xs select-none"
+                  className="pl-3 pr-1.5 py-1.5 flex items-center gap-2 text-xs select-none cursor-pointer"
                 >
+                  {/* Pin icon if default primary city */}
+                  {isInitial && (
+                    <span title="Cidade Principal" className="inline-flex items-center shrink-0">
+                      <Pin className="w-2.5 h-2.5 text-emerald-400 fill-emerald-400" />
+                    </span>
+                  )}
+
                   {/* Truncated City Name with Underline when selected (MSN Clima style) */}
                   <span
                     className={`max-w-[70px] sm:max-w-[90px] truncate block ${
-                      isSelected ? 'font-bold text-white underline underline-offset-4 decoration-2 decoration-cyan-400' : 'font-medium'
+                      isSelected
+                        ? 'font-bold text-white underline underline-offset-4 decoration-2 decoration-cyan-400'
+                        : isInitial
+                        ? 'font-semibold text-emerald-200'
+                        : 'font-medium'
                     }`}
                     title={city.name}
                   >
@@ -428,50 +489,77 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {/* 3 Dots Menu Button (⋮) */}
                 <button
                   type="button"
+                  data-menu-trigger="true"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setActiveMenuCity(isMenuOpen ? null : city.name);
+                    if (activeMenuCity && isSameCity(activeMenuCity, city)) {
+                      setActiveMenuCity(null);
+                      setMenuCoords(null);
+                    } else {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setMenuCoords({
+                        top: rect.bottom + 6,
+                        left: Math.max(10, Math.min(window.innerWidth - 186, rect.right - 176)),
+                      });
+                      setActiveMenuCity(city);
+                    }
                   }}
                   title="Opções do local"
-                  className="pr-2 pl-1 py-1.5 text-slate-400 hover:text-white transition-colors"
+                  className="pr-2 pl-1 py-1.5 text-slate-400 hover:text-white transition-colors cursor-pointer"
                 >
-                  <MoreVertical className="w-3.5 h-3.5" />
+                  <MoreVertical className="w-3.5 h-3.5 pointer-events-none" />
                 </button>
-
-                {/* Dropdown Menu for 3 Dots (Fixar inicial / Remover) */}
-                {isMenuOpen && (
-                  <div
-                    ref={menuRef}
-                    style={{ backgroundColor: '#090d16', zIndex: 99999 }}
-                    className="absolute right-0 top-full mt-1.5 w-44 rounded-xl shadow-2xl border border-slate-700 py-1 text-xs animate-in fade-in zoom-in-95 duration-150"
-                  >
-                    {onSetDefaultCity && (
-                      <button
-                        type="button"
-                        onClick={() => handleSetInitial(city)}
-                        style={{ backgroundColor: '#090d16' }}
-                        className="w-full px-3 py-2 text-left hover:bg-slate-800 flex items-center gap-2 text-slate-200 transition-colors"
-                      >
-                        <Pin className={`w-3.5 h-3.5 ${isInitial ? 'text-emerald-400 fill-emerald-400/40' : 'text-slate-400'}`} />
-                        <span>{isInitial ? 'Cidade Inicial ✓' : 'Fixar como inicial'}</span>
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveCity(city)}
-                      style={{ backgroundColor: '#090d16' }}
-                      className="w-full px-3 py-2 text-left hover:bg-rose-500/20 text-rose-300 flex items-center gap-2 transition-colors border-t border-slate-800"
-                    >
-                      <Trash2 className="w-3.5 h-3.5 text-rose-400" />
-                      <span>Remover</span>
-                    </button>
-                  </div>
-                )}
               </div>
             );
           })}
         </div>
       </div>
+
+      {/* Floating 3-Dots Dropdown Menu (Position Fixed para NUNCA ser cortado por overflow-x-auto) */}
+      {activeMenuCity && menuCoords && (
+        <div
+          ref={menuRef}
+          style={{
+            position: 'fixed',
+            top: `${menuCoords.top}px`,
+            left: `${menuCoords.left}px`,
+            backgroundColor: '#090d16',
+            zIndex: 999999,
+          }}
+          className="w-44 rounded-xl shadow-2xl border border-slate-700 py-1 text-xs animate-in fade-in zoom-in-95 duration-100"
+        >
+          {onSetDefaultCity && (
+            <button
+              type="button"
+              onClick={() => handleSetInitial(activeMenuCity)}
+              style={{ backgroundColor: '#090d16' }}
+              className="w-full px-3 py-2 text-left hover:bg-slate-800 flex items-center gap-2 text-slate-200 transition-colors cursor-pointer"
+            >
+              <Pin
+                className={`w-3.5 h-3.5 ${
+                  isSameCity(defaultCity, activeMenuCity)
+                    ? 'text-emerald-400 fill-emerald-400/40'
+                    : 'text-slate-400'
+                }`}
+              />
+              <span>
+                {isSameCity(defaultCity, activeMenuCity)
+                  ? 'Desafixar inicial'
+                  : 'Fixar como inicial'}
+              </span>
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => handleRemoveCity(activeMenuCity)}
+            style={{ backgroundColor: '#090d16' }}
+            className="w-full px-3 py-2 text-left hover:bg-rose-500/20 text-rose-300 flex items-center gap-2 transition-colors border-t border-slate-800 cursor-pointer"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+            <span>Remover</span>
+          </button>
+        </div>
+      )}
 
       {/* Mobile Full-Screen Search Modal - 100% Opaque Solid */}
       {isMobileSearchOpen && (
