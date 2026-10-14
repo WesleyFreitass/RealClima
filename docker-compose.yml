@@ -1,0 +1,7 @@
+services:
+  realclima:
+    build: .
+    container_name: realclima-app
+    restart: unless-stopped
+    ports:
+      - "3060:80"
