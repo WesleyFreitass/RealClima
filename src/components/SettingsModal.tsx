@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { X, Sliders, Thermometer, Check, Layers } from 'lucide-react';
+import { X, Sliders, Thermometer, Check, Layers, RefreshCw, DownloadCloud, CheckCircle2 } from 'lucide-react';
 import type { AppSettings, ModelId } from '../types/weather';
+import { CURRENT_VERSION, checkForAppUpdates, type AppVersionInfo } from '../services/updateService';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   settings: AppSettings;
   onSaveSettings: (newSettings: AppSettings) => void;
+  onOpenUpdateModal?: (info: AppVersionInfo) => void;
 }
 
 const MODEL_LABELS: Record<ModelId, { title: string; desc: string }> = {
@@ -41,11 +43,39 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   settings,
   onSaveSettings,
+  onOpenUpdateModal,
 }) => {
   const [localSettings, setLocalSettings] = useState<AppSettings>(settings);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState<
+    'idle' | 'up-to-date' | 'found' | 'error'
+  >('idle');
+  const [foundInfo, setFoundInfo] = useState<AppVersionInfo | null>(null);
 
   if (!isOpen) return null;
+
+  const handleCheckUpdates = async () => {
+    setIsCheckingUpdate(true);
+    setUpdateStatus('idle');
+    try {
+      const res = await checkForAppUpdates(true);
+      if (res.hasUpdate && res.versionInfo) {
+        setUpdateStatus('found');
+        setFoundInfo(res.versionInfo);
+        if (onOpenUpdateModal) {
+          onClose();
+          onOpenUpdateModal(res.versionInfo);
+        }
+      } else {
+        setUpdateStatus('up-to-date');
+      }
+    } catch {
+      setUpdateStatus('error');
+    } finally {
+      setIsCheckingUpdate(false);
+    }
+  };
 
   const handleToggleModel = (id: ModelId) => {
     setLocalSettings((prev) => ({
@@ -205,6 +235,61 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               );
             })}
+          </div>
+        </div>
+
+        {/* 4. Versão e Atualizações do Aplicativo */}
+        <div className="space-y-2 pt-2 border-t border-white/10">
+          <label className="text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <DownloadCloud className="w-3.5 h-3.5 text-cyan-400" />
+              Versão e Atualizações
+            </span>
+            <span className="text-[11px] font-mono text-slate-400">
+              v{CURRENT_VERSION}
+            </span>
+          </label>
+
+          <div className="p-3.5 rounded-xl living-glass-card border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="text-xs font-medium text-white flex items-center gap-1.5">
+                RealClima para Android & Web
+              </div>
+              <div className="text-[11px] text-slate-400">
+                {updateStatus === 'idle' &&
+                  'Verifique se há novas versões disponíveis no GitHub.'}
+                {updateStatus === 'up-to-date' && (
+                  <span className="text-emerald-400 flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 inline" /> Você já está
+                    usando a versão mais recente!
+                  </span>
+                )}
+                {updateStatus === 'found' && (
+                  <span className="text-cyan-300 font-semibold">
+                    🚀 Nova versão {foundInfo?.version} encontrada!
+                  </span>
+                )}
+                {updateStatus === 'error' && (
+                  <span className="text-amber-400">
+                    Não foi possível verificar no momento. Tente mais tarde.
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleCheckUpdates}
+              disabled={isCheckingUpdate}
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/15 active:scale-95 border border-white/15 text-white flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw
+                className={`w-3.5 h-3.5 text-cyan-400 ${
+                  isCheckingUpdate ? 'animate-spin' : ''
+                }`}
+              />
+              <span>{isCheckingUpdate ? 'Verificando...' : 'Verificar Atualização'}</span>
+            </button>
           </div>
         </div>
 

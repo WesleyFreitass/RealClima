@@ -1,0 +1,7 @@
+{
+  "version": "1.0.0",
+  "versionCode": 1,
+  "releaseNotes": "Versão inicial com radar ao vivo (RainViewer), barra de cidades estilo MSN Clima, alertas meteorológicos automáticos e previsões por consenso.",
+  "downloadUrl": "https://github.com/WesleyFreitass/RealClima/releases/latest/download/app-debug.apk",
+  "publishedAt": "2026-10-14"
+}

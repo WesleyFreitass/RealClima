@@ -9,8 +9,10 @@ import { WeatherRadarMap } from './components/WeatherRadarMap';
 import { WeatherAlertBanner } from './components/WeatherAlertBanner';
 import { SettingsModal } from './components/SettingsModal';
 import { InfoModal } from './components/InfoModal';
+import { UpdateModal } from './components/UpdateModal';
 import { fetchWeatherEnsemble } from './services/weatherEnsemble';
 import { POPULAR_CITIES, reverseGeocode } from './services/geocoding';
+import { checkForAppUpdates, CURRENT_VERSION, type AppVersionInfo } from './services/updateService';
 import type { LocationData, ConsensusData, AppSettings } from './types/weather';
 import { DEFAULT_SETTINGS } from './types/weather';
 import { AlertCircle, CloudSun, Clock, Layers, RefreshCw, Settings } from 'lucide-react';
@@ -96,6 +98,25 @@ export function App() {
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<AppVersionInfo | null>(null);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+
+  // Verificação automática de atualizações do app ao iniciar
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      try {
+        const res = await checkForAppUpdates(false);
+        if (res.hasUpdate && res.versionInfo) {
+          setUpdateInfo(res.versionInfo);
+          setIsUpdateModalOpen(true);
+        }
+      } catch (e) {
+        console.warn('Erro na verificação de atualizações:', e);
+      }
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   // Fetch forecast function
   const loadForecast = useCallback(async () => {
@@ -400,11 +421,22 @@ export function App() {
         onClose={() => setIsSettingsOpen(false)}
         settings={settings}
         onSaveSettings={handleSaveSettings}
+        onOpenUpdateModal={(info) => {
+          setUpdateInfo(info);
+          setIsUpdateModalOpen(true);
+        }}
       />
 
       <InfoModal
         isOpen={isInfoOpen}
         onClose={() => setIsInfoOpen(false)}
+      />
+
+      <UpdateModal
+        isOpen={isUpdateModalOpen}
+        onClose={() => setIsUpdateModalOpen(false)}
+        updateInfo={updateInfo}
+        currentVersion={CURRENT_VERSION}
       />
     </div>
   );
