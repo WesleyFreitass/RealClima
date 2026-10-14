@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { X, Sliders, Thermometer, Check, Layers, RefreshCw, DownloadCloud, CheckCircle2 } from 'lucide-react';
 import type { AppSettings, ModelId } from '../types/weather';
 import { CURRENT_VERSION, checkForAppUpdates, type AppVersionInfo } from '../services/updateService';
@@ -250,47 +251,64 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </span>
           </label>
 
-          <div className="p-3.5 rounded-xl living-glass-card border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <div className="text-xs font-medium text-white flex items-center gap-1.5">
-                RealClima para Android & Web
+          {Capacitor.isNativePlatform() ? (
+            <div className="p-3.5 rounded-xl living-glass-card border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-medium text-white flex items-center gap-1.5">
+                  RealClima para Android
+                </div>
+                <div className="text-[11px] text-slate-400">
+                  {updateStatus === 'idle' &&
+                    'Verifique se há novas versões disponíveis no GitHub.'}
+                  {updateStatus === 'up-to-date' && (
+                    <span className="text-emerald-400 flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5 inline" /> Você já está
+                      usando a versão mais recente!
+                    </span>
+                  )}
+                  {updateStatus === 'found' && (
+                    <span className="text-cyan-300 font-semibold">
+                      🚀 Nova versão {foundInfo?.version} encontrada!
+                    </span>
+                  )}
+                  {updateStatus === 'error' && (
+                    <span className="text-amber-400">
+                      Não foi possível verificar no momento. Tente mais tarde.
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="text-[11px] text-slate-400">
-                {updateStatus === 'idle' &&
-                  'Verifique se há novas versões disponíveis no GitHub.'}
-                {updateStatus === 'up-to-date' && (
-                  <span className="text-emerald-400 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5 inline" /> Você já está
-                    usando a versão mais recente!
-                  </span>
-                )}
-                {updateStatus === 'found' && (
-                  <span className="text-cyan-300 font-semibold">
-                    🚀 Nova versão {foundInfo?.version} encontrada!
-                  </span>
-                )}
-                {updateStatus === 'error' && (
-                  <span className="text-amber-400">
-                    Não foi possível verificar no momento. Tente mais tarde.
-                  </span>
-                )}
-              </div>
-            </div>
 
-            <button
-              type="button"
-              onClick={handleCheckUpdates}
-              disabled={isCheckingUpdate}
-              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/15 active:scale-95 border border-white/15 text-white flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
-            >
-              <RefreshCw
-                className={`w-3.5 h-3.5 text-cyan-400 ${
-                  isCheckingUpdate ? 'animate-spin' : ''
-                }`}
-              />
-              <span>{isCheckingUpdate ? 'Verificando...' : 'Verificar Atualização'}</span>
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={handleCheckUpdates}
+                disabled={isCheckingUpdate}
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/15 active:scale-95 border border-white/15 text-white flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw
+                  className={`w-3.5 h-3.5 text-cyan-400 ${
+                    isCheckingUpdate ? 'animate-spin' : ''
+                  }`}
+                />
+                <span>{isCheckingUpdate ? 'Verificando...' : 'Verificar Atualização'}</span>
+              </button>
+            </div>
+          ) : (
+            <div className="p-3.5 rounded-xl living-glass-card border border-white/10 flex items-center justify-between">
+              <div>
+                <div className="text-xs font-medium text-white flex items-center gap-1.5">
+                  Versão Web RealClima
+                </div>
+                <div className="text-[11px] text-emerald-400 flex items-center gap-1 mt-0.5 font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5 inline text-emerald-400" />
+                  Sempre atualizado em tempo real no seu navegador
+                </div>
+              </div>
+              <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                Online
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Footer actions */}

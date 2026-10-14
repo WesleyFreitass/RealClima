@@ -20,8 +20,8 @@ export interface CheckUpdateResult {
   error?: string;
 }
 
-export const CURRENT_VERSION = '1.0.1';
-export const CURRENT_BUILD = 2;
+export const CURRENT_VERSION = '1.0.3';
+export const CURRENT_BUILD = 3;
 
 const VERSION_JSON_URL =
   'https://raw.githubusercontent.com/WesleyFreitass/RealClima/main/version.json';
@@ -54,11 +54,21 @@ export function compareVersions(v1: string, v2: string): number {
 
 /**
  * Verifica se há uma nova versão disponível para o aplicativo.
- * Prioriza o version.json do GitHub com fallback para a API de Releases.
+ * Apenas verifica quando executado em plataforma nativa (Android / iOS).
+ * No navegador / site, o usuário está SEMPRE na versão mais recente em tempo real.
  */
 export async function checkForAppUpdates(
   forceCheck = false
 ): Promise<CheckUpdateResult> {
+  // Se estiver na Web / Navegador, o site é sempre a versão mais recente em tempo real
+  if (!Capacitor.isNativePlatform()) {
+    return {
+      hasUpdate: false,
+      currentVersion: CURRENT_VERSION,
+      latestVersion: CURRENT_VERSION,
+    };
+  }
+
   // Se não for verificação manual/forçada, verifica se o usuário já dispensou essa versão recentemente
   if (!forceCheck) {
     try {

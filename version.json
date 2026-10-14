@@ -1,8 +1,8 @@
 {
-  "version": "1.0.2",
+  "version": "1.0.3",
   "versionCode": 3,
   "bundleUrl": "https://github.com/WesleyFreitass/RealClima/releases/latest/download/dist.zip",
   "downloadUrl": "https://github.com/WesleyFreitass/RealClima/releases/latest/download/app-release.apk",
-  "releaseNotes": "Motor de Atualizações Automáticas (Live Updates OTA) integrado! A partir deste APK, todas as atualizações acontecem automaticamente em segundo plano.",
+  "releaseNotes": "Correção definitiva do widget da tela inicial do Android (Céu Vivo) e otimizações de sincronização em tempo real.",
   "publishedAt": "2026-10-14"
 }

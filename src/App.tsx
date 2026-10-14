@@ -69,6 +69,7 @@ export function App() {
       } else {
         localStorage.setItem('realclima_default_city', JSON.stringify(loc));
         setDefaultCity(loc);
+        syncAndroidWidget(loc, data);
       }
     } catch (e) {
       console.warn('Erro ao salvar cidade padrão:', e);
@@ -108,15 +109,19 @@ export function App() {
     notifyAppReadyIfNative();
   }, []);
 
-  // Verificação automática de atualizações do app ao iniciar
+  // Verificação automática de atualizações do app ao iniciar (Apenas aplicativo nativo Android/iOS)
   useEffect(() => {
+    if (!Capacitor.isNativePlatform()) {
+      return;
+    }
+
     const timer = setTimeout(async () => {
       try {
         const res = await checkForAppUpdates(false);
         if (res.hasUpdate && res.versionInfo) {
           setUpdateInfo(res.versionInfo);
           // Se houver bundle OTA e estiver no app nativo, inicia download silencioso em segundo plano
-          if (res.versionInfo.bundleUrl && Capacitor.isNativePlatform()) {
+          if (res.versionInfo.bundleUrl) {
             downloadAndApplyOta(res.versionInfo.bundleUrl, res.versionInfo.version, false);
           }
           setIsUpdateModalOpen(true);

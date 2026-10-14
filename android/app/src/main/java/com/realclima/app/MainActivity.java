@@ -16,8 +16,8 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        registerPlugin(RealClimaWidgetPlugin.class);
         super.onCreate(savedInstanceState);
+        registerPlugin(RealClimaWidgetPlugin.class);
     }
 
     @CapacitorPlugin(name = "RealClimaWidget")
@@ -45,11 +45,14 @@ public class MainActivity extends BridgeActivity {
                 if (mainIcon != null && !mainIcon.isEmpty()) editor.putString("mainIcon", mainIcon);
                 editor.apply();
 
-                // Notifica o AppWidgetManager para atualizar os widgets na tela inicial
+                // Notifica o AppWidgetManager e atualiza diretamente todos os widgets ativos
                 AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(context);
                 ComponentName thisWidget = new ComponentName(context, CeuVivoWidget.class);
                 int[] allWidgetIds = appWidgetManager.getAppWidgetIds(thisWidget);
                 if (allWidgetIds != null && allWidgetIds.length > 0) {
+                    for (int appWidgetId : allWidgetIds) {
+                        CeuVivoWidget.updateAppWidget(context, appWidgetManager, appWidgetId);
+                    }
                     Intent intent = new Intent(context, CeuVivoWidget.class);
                     intent.setAction(AppWidgetManager.ACTION_APPWIDGET_UPDATE);
                     intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, allWidgetIds);

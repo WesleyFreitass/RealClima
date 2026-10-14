@@ -20,7 +20,8 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
   const [isApplying, setIsApplying] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
 
-  if (!isOpen || !updateInfo) return null;
+  // Na Web/Navegador, nunca exibe modal de atualização: o site é sempre a versão mais recente em tempo real
+  if (!isOpen || !updateInfo || !Capacitor.isNativePlatform()) return null;
 
   const isOta = Boolean(updateInfo.bundleUrl && Capacitor.isNativePlatform());
 

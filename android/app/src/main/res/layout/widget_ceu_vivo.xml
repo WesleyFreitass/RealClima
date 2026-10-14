@@ -92,13 +92,14 @@
         </LinearLayout>
     </RelativeLayout>
 
-    <!-- Subtle Divider Line -->
-    <View
+    <!-- Subtle Divider Line (ImageView is mandatory in RemoteViews as View is strictly disallowed) -->
+    <ImageView
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:layout_marginTop="10dp"
         android:layout_marginBottom="10dp"
-        android:background="#26FFFFFF" />
+        android:background="#26FFFFFF"
+        android:contentDescription="@null" />
 
     <!-- Bottom Section: 6 Hourly Forecast Slots Strip -->
     <LinearLayout

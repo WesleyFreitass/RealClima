@@ -37,41 +37,45 @@ public class CeuVivoWidget extends AppWidgetProvider {
     }
 
     static void updateAppWidget(Context context, AppWidgetManager appWidgetManager, int appWidgetId) {
-        RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_ceu_vivo);
+        try {
+            RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_ceu_vivo);
 
-        // Click no widget abre o aplicativo RealClima
-        Intent intent = new Intent(context, MainActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        PendingIntent pendingIntent = PendingIntent.getActivity(
-                context,
-                0,
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-        );
-        views.setOnClickPendingIntent(R.id.widget_root, pendingIntent);
+            // Click no widget abre o aplicativo RealClima
+            Intent intent = new Intent(context, MainActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            PendingIntent pendingIntent = PendingIntent.getActivity(
+                    context,
+                    0,
+                    intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+            );
+            views.setOnClickPendingIntent(R.id.widget_root, pendingIntent);
 
-        // 1. Carrega dados salvos em cache imediatamente
-        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        views.setTextViewText(R.id.widget_city_name, prefs.getString("city", "São Paulo"));
-        views.setTextViewText(R.id.widget_temperature, prefs.getString("temp", "23°"));
-        views.setTextViewText(R.id.widget_condition, prefs.getString("condition", "Céu Limpo"));
-        views.setTextViewText(R.id.widget_min_max, prefs.getString("minMax", "25°/18°"));
-        views.setTextViewText(R.id.widget_main_icon, prefs.getString("mainIcon", "☀️"));
+            // 1. Carrega dados salvos em cache imediatamente
+            SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+            views.setTextViewText(R.id.widget_city_name, prefs.getString("city", "São Paulo"));
+            views.setTextViewText(R.id.widget_temperature, prefs.getString("temp", "23°"));
+            views.setTextViewText(R.id.widget_condition, prefs.getString("condition", "Céu Limpo"));
+            views.setTextViewText(R.id.widget_min_max, prefs.getString("minMax", "25°/18°"));
+            views.setTextViewText(R.id.widget_main_icon, prefs.getString("mainIcon", "☀️"));
 
-        int[] tempIds = {R.id.hour_temp_1, R.id.hour_temp_2, R.id.hour_temp_3, R.id.hour_temp_4, R.id.hour_temp_5, R.id.hour_temp_6};
-        int[] iconIds = {R.id.hour_icon_1, R.id.hour_icon_2, R.id.hour_icon_3, R.id.hour_icon_4, R.id.hour_icon_5, R.id.hour_icon_6};
-        int[] timeIds = {R.id.hour_time_1, R.id.hour_time_2, R.id.hour_time_3, R.id.hour_time_4, R.id.hour_time_5, R.id.hour_time_6};
+            int[] tempIds = {R.id.hour_temp_1, R.id.hour_temp_2, R.id.hour_temp_3, R.id.hour_temp_4, R.id.hour_temp_5, R.id.hour_temp_6};
+            int[] iconIds = {R.id.hour_icon_1, R.id.hour_icon_2, R.id.hour_icon_3, R.id.hour_icon_4, R.id.hour_icon_5, R.id.hour_icon_6};
+            int[] timeIds = {R.id.hour_time_1, R.id.hour_time_2, R.id.hour_time_3, R.id.hour_time_4, R.id.hour_time_5, R.id.hour_time_6};
 
-        for (int i = 0; i < 6; i++) {
-            views.setTextViewText(tempIds[i], prefs.getString("h_temp_" + i, (22 - (i > 3 ? 1 : 0)) + "°"));
-            views.setTextViewText(iconIds[i], prefs.getString("h_icon_" + i, "☁️"));
-            views.setTextViewText(timeIds[i], prefs.getString("h_time_" + i, String.format("%02d:00", (18 + i) % 24)));
+            for (int i = 0; i < 6; i++) {
+                views.setTextViewText(tempIds[i], prefs.getString("h_temp_" + i, (22 - (i > 3 ? 1 : 0)) + "°"));
+                views.setTextViewText(iconIds[i], prefs.getString("h_icon_" + i, "☁️"));
+                views.setTextViewText(timeIds[i], prefs.getString("h_time_" + i, String.format(Locale.US, "%02d:00", (18 + i) % 24)));
+            }
+
+            appWidgetManager.updateAppWidget(appWidgetId, views);
+
+            // 2. Busca previsão atualizada assincronamente da Open-Meteo
+            fetchLatestWeatherAsync(context, appWidgetManager, appWidgetId);
+        } catch (Throwable t) {
+            t.printStackTrace();
         }
-
-        appWidgetManager.updateAppWidget(appWidgetId, views);
-
-        // 2. Busca previsão atualizada assincronamente da Open-Meteo
-        fetchLatestWeatherAsync(context, appWidgetManager, appWidgetId);
     }
 
     private static void fetchLatestWeatherAsync(Context context, AppWidgetManager appWidgetManager, int appWidgetId) {
@@ -128,6 +132,10 @@ public class CeuVivoWidget extends AppWidgetProvider {
                         }
                     }
 
+                    if (minMaxStr.isEmpty()) {
+                        minMaxStr = prefs.getString("minMax", "25°/18°");
+                    }
+
                     // Previsão horária para as próximas 6 horas
                     Calendar cal = Calendar.getInstance();
                     int curHour = cal.get(Calendar.HOUR_OF_DAY);
@@ -135,6 +143,15 @@ public class CeuVivoWidget extends AppWidgetProvider {
                     String[] hTemps = new String[6];
                     String[] hIcons = new String[6];
                     String[] hTimes = new String[6];
+
+                    // Preenche valores padrão de segurança
+                    for (int i = 0; i < 6; i++) {
+                        int targetHour = (curHour + i) % 24;
+                        boolean isDaytime = targetHour >= 6 && targetHour < 18;
+                        hTemps[i] = Math.round(temp) + "°";
+                        hIcons[i] = getWeatherEmoji(code, isDaytime);
+                        hTimes[i] = String.format(Locale.US, "%02d:00", targetHour);
+                    }
 
                     if (json.has("hourly")) {
                         JSONObject hourly = json.getJSONObject("hourly");
@@ -150,7 +167,7 @@ public class CeuVivoWidget extends AppWidgetProvider {
 
                             hTemps[i] = Math.round(hTemp) + "°";
                             hIcons[i] = getWeatherEmoji(hCode, isDaytime);
-                            hTimes[i] = String.format("%02d:00", targetHour);
+                            hTimes[i] = String.format(Locale.US, "%02d:00", targetHour);
                         }
                     }
 
