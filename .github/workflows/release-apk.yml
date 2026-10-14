@@ -46,14 +46,16 @@ jobs:
       - name: Dar Permissão ao Gradle Wrapper
         run: chmod +x android/gradlew
 
-      - name: Compilar APK Android
+      - name: Compilar APKs Android
         run: |
           cd android
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug assembleRelease
 
-      - name: Renomear APK para Release
+      - name: Preparar APKs para Release
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk realclima-${{ github.ref_name || inputs.tag_name }}.apk
+          cp android/app/build/outputs/apk/release/app-release.apk realclima-${{ github.ref_name || inputs.tag_name }}-release.apk
+          cp android/app/build/outputs/apk/release/app-release.apk app-release.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk app-debug.apk
 
       - name: Criar GitHub Release e Anexar APK
         uses: softprops/action-gh-release@v2
@@ -63,7 +65,8 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            realclima-${{ github.ref_name || inputs.tag_name }}.apk
-            android/app/build/outputs/apk/debug/app-debug.apk
+            realclima-${{ github.ref_name || inputs.tag_name }}-release.apk
+            app-release.apk
+            app-debug.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
