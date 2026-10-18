@@ -27,4 +27,30 @@ jobs:
             git reset --hard origin/main
             docker compose up -d --build
             docker ps --filter "name=realclima-app"
-            echo "✅ [CI/CD] Deploy do RealClima concluído com sucesso na porta 3060!"
+
+            echo "🌐 [CI/CD] Configurando Nginx para realclima.pampo.tech..."
+            cat << 'NGINX_EOF' > /etc/nginx/sites-available/realclima.pampo.tech
+server {
+    listen 80;
+    server_name realclima.pampo.tech;
+
+    location / {
+        proxy_pass http://127.0.0.1:3060;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+NGINX_EOF
+
+            ln -sf /etc/nginx/sites-available/realclima.pampo.tech /etc/nginx/sites-enabled/
+            nginx -t && systemctl reload nginx
+
+            echo "🔒 [CI/CD] Gerando/Renovando certificado SSL gratuito com Certbot..."
+            if command -v certbot >/dev/null 2>&1; then
+                certbot --nginx -d realclima.pampo.tech --non-interactive --agree-tos -m wesley@pampo.tech --redirect || true
+                systemctl reload nginx || true
+            fi
+
+            echo "✅ [CI/CD] Deploy e configuração de realclima.pampo.tech concluídos com sucesso!"
