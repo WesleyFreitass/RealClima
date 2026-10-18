@@ -17,7 +17,7 @@ import { syncAndroidWidget } from './services/widgetSync';
 import { Capacitor } from '@capacitor/core';
 import type { LocationData, ConsensusData, AppSettings } from './types/weather';
 import { DEFAULT_SETTINGS } from './types/weather';
-import { AlertCircle, CloudSun, Clock, Layers, RefreshCw, Settings } from 'lucide-react';
+import { AlertCircle, CloudSun, Clock, Layers, RefreshCw, Settings, WifiOff } from 'lucide-react';
 import './App.css';
 
 export function App() {
@@ -95,8 +95,45 @@ export function App() {
     return DEFAULT_SETTINGS;
   });
 
-  const [data, setData] = useState<ConsensusData | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isOffline, setIsOffline] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('realclima_last_sync_time') || null;
+    } catch {
+      return null;
+    }
+  });
+
+  // Inicialização com dados salvos em cache para acesso instantâneo e offline
+  const [data, setData] = useState<ConsensusData | null>(() => {
+    try {
+      const cityKey = `realclima_cached_forecast_${currentLocation.name.toLowerCase()}`;
+      const saved = localStorage.getItem(cityKey) || localStorage.getItem('realclima_last_cached_forecast');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.data ? parsed.data : parsed;
+      }
+    } catch (e) {
+      console.warn('Erro ao restaurar previsão em cache:', e);
+    }
+    return null;
+  });
+
+  // Atualiza dados instantaneamente a partir do cache ao trocar de cidade
+  useEffect(() => {
+    try {
+      const cityKey = `realclima_cached_forecast_${currentLocation.name.toLowerCase()}`;
+      const saved = localStorage.getItem(cityKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setData(parsed.data ? parsed.data : parsed);
+      }
+    } catch (e) {
+      console.warn('Erro ao trocar cache de cidade:', e);
+    }
+  }, [currentLocation]);
+
+  const [isLoading, setIsLoading] = useState<boolean>(!data);
   const [error, setError] = useState<string | null>(null);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -134,10 +171,9 @@ export function App() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Fetch forecast function
+  // Fetch forecast function com suporte a cache offline
   const loadForecast = useCallback(async () => {
     setIsLoading(true);
-    setError(null);
 
     try {
       const result = await fetchWeatherEnsemble({
@@ -145,16 +181,58 @@ export function App() {
         settings,
       });
       setData(result);
+      setError(null);
+      setIsOffline(false);
+
+      const timeStr = new Date().toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      setLastSyncTime(timeStr);
+
+      try {
+        const cityKey = `realclima_cached_forecast_${currentLocation.name.toLowerCase()}`;
+        localStorage.setItem('realclima_last_sync_time', timeStr);
+        localStorage.setItem(cityKey, JSON.stringify(result));
+        localStorage.setItem('realclima_last_cached_forecast', JSON.stringify(result));
+      } catch (e) {
+        console.warn('Erro ao salvar cache de previsão:', e);
+      }
+
       syncAndroidWidget(currentLocation, result);
     } catch (err: any) {
-      console.error('Falha ao carregar ensemble:', err);
-      setError(
-        err.message || 'Não foi possível carregar os dados meteorológicos.'
-      );
+      console.warn('Falha ao carregar ensemble meteorológico (offline):', err);
+
+      // Tenta recuperar do cache se o state atual estiver vazio
+      let fallbackData = data;
+      if (!fallbackData) {
+        try {
+          const cityKey = `realclima_cached_forecast_${currentLocation.name.toLowerCase()}`;
+          const saved = localStorage.getItem(cityKey) || localStorage.getItem('realclima_last_cached_forecast');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            fallbackData = parsed.data ? parsed.data : parsed;
+            if (fallbackData) {
+              setData(fallbackData);
+            }
+          }
+        } catch {}
+      }
+
+      if (fallbackData) {
+        // Se temos dados em cache, entra em modo offline e NÃO exibe erro bloqueante
+        setIsOffline(true);
+        setError(null);
+      } else {
+        // Só exibe tela de erro se não houver NENHUM dado em cache histórico
+        setError(
+          err.message || 'Não foi possível carregar os dados meteorológicos e não há previsão salva offline.'
+        );
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [currentLocation, settings]);
+  }, [currentLocation, settings, data]);
 
   // Initial and reactive load
   useEffect(() => {
@@ -277,6 +355,29 @@ export function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-28 md:pb-8 space-y-6 sm:space-y-8 relative z-20">
+        {/* Offline Notice Banner */}
+        {isOffline && data && (
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-300 flex items-center justify-between gap-3 text-xs sm:text-sm animate-fade-in shadow-lg shadow-amber-500/5">
+            <div className="flex items-center gap-2.5">
+              <WifiOff className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 shrink-0" />
+              <div>
+                <span className="font-bold text-amber-300">Modo Offline</span>
+                <span className="text-amber-200/80 ml-1.5">
+                  Exibindo o clima da última sincronização{lastSyncTime ? ` (${lastSyncTime})` : ''}.
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={loadForecast}
+              disabled={isLoading}
+              className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-white font-semibold text-xs transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+              <span>Reconectar</span>
+            </button>
+          </div>
+        )}
+
         {/* Error State */}
         {error && (
           <div className="p-4 sm:p-5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 flex items-start justify-between gap-4">

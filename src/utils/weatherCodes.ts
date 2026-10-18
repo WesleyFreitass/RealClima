@@ -121,3 +121,17 @@ export function degreesToCompass(deg?: number | string): string {
   const arr = ['N', 'NNE', 'NE', 'ENE', 'L', 'ESE', 'SE', 'SSE', 'S', 'SSO', 'SO', 'OSO', 'O', 'ONO', 'NO', 'NNO'];
   return arr[(val % 16)];
 }
+
+export function getWeatherEmoji(code: number, isDay = true): string {
+  if (code === 0) return isDay ? '☀️' : '🌙';
+  if (code === 1) return isDay ? '🌤️' : '🌙';
+  if (code === 2) return isDay ? '⛅' : '☁️';
+  if (code === 3) return '☁️';
+  if (code === 45 || code === 48) return '🌫️';
+  if (code >= 51 && code <= 55) return '🌦️';
+  if (code >= 61 && code <= 65) return '🌧️';
+  if (code >= 71 && code <= 77) return '❄️';
+  if (code >= 80 && code <= 82) return '🌧️';
+  if (code >= 95) return '⛈️';
+  return isDay ? '☀️' : '🌙';
+}

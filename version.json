@@ -1,7 +1,7 @@
 {
-  "version": "1.0.3",
-  "versionCode": 3,
+  "version": "1.0.4",
+  "versionCode": 4,
   "downloadUrl": "https://github.com/WesleyFreitass/RealClima/releases/latest/download/app-release.apk",
-  "releaseNotes": "Atualização com correção definitiva do widget da tela inicial do Android (Céu Vivo) e sincronização contínua.",
-  "publishedAt": "2026-10-14"
+  "releaseNotes": "Sincronização contínua do widget em segundo plano via WorkManager (Android), alinhamento perfeito de previsão horária com o app e suporte completo ao modo offline com cache da última atualização.",
+  "publishedAt": "2026-10-18"
 }
