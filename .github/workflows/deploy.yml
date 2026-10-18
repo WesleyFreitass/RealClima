@@ -30,19 +30,19 @@ jobs:
 
             echo "🌐 [CI/CD] Configurando Nginx para realclima.pampo.tech..."
             cat << 'NGINX_EOF' > /etc/nginx/sites-available/realclima.pampo.tech
-server {
-    listen 80;
-    server_name realclima.pampo.tech;
+            server {
+                listen 80;
+                server_name realclima.pampo.tech;
 
-    location / {
-        proxy_pass http://127.0.0.1:3060;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-NGINX_EOF
+                location / {
+                    proxy_pass http://127.0.0.1:3060;
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                }
+            }
+            NGINX_EOF
 
             ln -sf /etc/nginx/sites-available/realclima.pampo.tech /etc/nginx/sites-enabled/
             nginx -t && systemctl reload nginx
