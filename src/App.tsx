@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Navbar } from './components/Navbar';
 import { HeroConsensusCard } from './components/HeroConsensusCard';
 import { ModelComparisonGrid } from './components/ModelComparisonGrid';
@@ -69,7 +69,7 @@ export function App() {
       } else {
         localStorage.setItem('realclima_default_city', JSON.stringify(loc));
         setDefaultCity(loc);
-        syncAndroidWidget(loc, data);
+        syncAndroidWidget(loc, dataRef.current);
       }
     } catch (e) {
       console.warn('Erro ao salvar cidade padrão:', e);
@@ -119,6 +119,11 @@ export function App() {
     return null;
   });
 
+  const dataRef = useRef<ConsensusData | null>(data);
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
+
   // Atualiza dados instantaneamente a partir do cache ao trocar de cidade
   useEffect(() => {
     try {
@@ -126,7 +131,9 @@ export function App() {
       const saved = localStorage.getItem(cityKey);
       if (saved) {
         const parsed = JSON.parse(saved);
-        setData(parsed.data ? parsed.data : parsed);
+        const resolved = parsed.data ? parsed.data : parsed;
+        setData(resolved);
+        dataRef.current = resolved;
       }
     } catch (e) {
       console.warn('Erro ao trocar cache de cidade:', e);
@@ -181,6 +188,7 @@ export function App() {
         settings,
       });
       setData(result);
+      dataRef.current = result;
       setError(null);
       setIsOffline(false);
 
@@ -204,7 +212,7 @@ export function App() {
       console.warn('Falha ao carregar ensemble meteorológico (offline):', err);
 
       // Tenta recuperar do cache se o state atual estiver vazio
-      let fallbackData = data;
+      let fallbackData = dataRef.current;
       if (!fallbackData) {
         try {
           const cityKey = `realclima_cached_forecast_${currentLocation.name.toLowerCase()}`;
@@ -214,6 +222,7 @@ export function App() {
             fallbackData = parsed.data ? parsed.data : parsed;
             if (fallbackData) {
               setData(fallbackData);
+              dataRef.current = fallbackData;
             }
           }
         } catch {}
@@ -232,7 +241,7 @@ export function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentLocation, settings, data]);
+  }, [currentLocation, settings]);
 
   // Initial and reactive load
   useEffect(() => {
