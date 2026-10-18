@@ -20,11 +20,34 @@ import { DEFAULT_SETTINGS } from './types/weather';
 import { AlertCircle, CloudSun, Clock, Layers, RefreshCw, Settings, WifiOff } from 'lucide-react';
 import './App.css';
 
+function isValidLocation(loc: any): loc is LocationData {
+  return !!loc && typeof loc === 'object' && typeof loc.name === 'string' && typeof loc.lat === 'number' && typeof loc.lon === 'number';
+}
+
+function normalizeCachedForecast(raw: any): ConsensusData | null {
+  if (!raw) return null;
+  try {
+    const item = raw.data ? raw.data : raw;
+    if (!item || typeof item !== 'object' || typeof item.consensusTemp !== 'number') {
+      return null;
+    }
+    return {
+      ...item,
+      timestamp: item.timestamp ? new Date(item.timestamp) : new Date(),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function App() {
   const [defaultCity, setDefaultCity] = useState<LocationData | null>(() => {
     try {
       const saved = localStorage.getItem('realclima_default_city');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (isValidLocation(parsed)) return parsed;
+      }
     } catch (e) {
       console.warn('Erro ao carregar cidade padrão:', e);
     }
@@ -35,11 +58,13 @@ export function App() {
     try {
       const savedDefault = localStorage.getItem('realclima_default_city');
       if (savedDefault) {
-        return JSON.parse(savedDefault);
+        const parsed = JSON.parse(savedDefault);
+        if (isValidLocation(parsed)) return parsed;
       }
       const savedLast = localStorage.getItem('realclima_last_city');
       if (savedLast) {
-        return JSON.parse(savedLast);
+        const parsed = JSON.parse(savedLast);
+        if (isValidLocation(parsed)) return parsed;
       }
     } catch (e) {
       console.warn('Erro ao carregar cidade inicial:', e);
@@ -50,7 +75,9 @@ export function App() {
   // Salvar última cidade visualizada
   useEffect(() => {
     try {
-      localStorage.setItem('realclima_last_city', JSON.stringify(currentLocation));
+      if (isValidLocation(currentLocation)) {
+        localStorage.setItem('realclima_last_city', JSON.stringify(currentLocation));
+      }
     } catch (e) {
       console.warn('Erro ao salvar última cidade:', e);
     }
@@ -107,11 +134,11 @@ export function App() {
   // Inicialização com dados salvos em cache para acesso instantâneo e offline
   const [data, setData] = useState<ConsensusData | null>(() => {
     try {
-      const cityKey = `realclima_cached_forecast_${currentLocation.name.toLowerCase()}`;
+      const cityName = (currentLocation && currentLocation.name) ? currentLocation.name.toLowerCase() : 'são paulo';
+      const cityKey = `realclima_cached_forecast_${cityName}`;
       const saved = localStorage.getItem(cityKey) || localStorage.getItem('realclima_last_cached_forecast');
       if (saved) {
-        const parsed = JSON.parse(saved);
-        return parsed.data ? parsed.data : parsed;
+        return normalizeCachedForecast(JSON.parse(saved));
       }
     } catch (e) {
       console.warn('Erro ao restaurar previsão em cache:', e);
@@ -127,13 +154,15 @@ export function App() {
   // Atualiza dados instantaneamente a partir do cache ao trocar de cidade
   useEffect(() => {
     try {
-      const cityKey = `realclima_cached_forecast_${currentLocation.name.toLowerCase()}`;
+      const cityName = (currentLocation && currentLocation.name) ? currentLocation.name.toLowerCase() : 'são paulo';
+      const cityKey = `realclima_cached_forecast_${cityName}`;
       const saved = localStorage.getItem(cityKey);
       if (saved) {
-        const parsed = JSON.parse(saved);
-        const resolved = parsed.data ? parsed.data : parsed;
-        setData(resolved);
-        dataRef.current = resolved;
+        const resolved = normalizeCachedForecast(JSON.parse(saved));
+        if (resolved) {
+          setData(resolved);
+          dataRef.current = resolved;
+        }
       }
     } catch (e) {
       console.warn('Erro ao trocar cache de cidade:', e);

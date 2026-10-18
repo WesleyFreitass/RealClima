@@ -46,12 +46,15 @@ export const HeroConsensusCard: React.FC<HeroConsensusCardProps> = ({
     return `${Math.round(celsius)}°C`;
   };
 
-  // Format updated time
-  const updatedTimeStr = new Intl.DateTimeFormat('pt-BR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).format(timestamp);
+  // Format updated time safely (supporting both Date instances and serialized strings from cache)
+  const updatedDate = timestamp instanceof Date ? timestamp : new Date(timestamp);
+  const updatedTimeStr = !isNaN(updatedDate.getTime())
+    ? new Intl.DateTimeFormat('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      }).format(updatedDate)
+    : '--:--:--';
 
   // Confidence styling
   const confidenceStyles = {

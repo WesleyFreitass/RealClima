@@ -16,8 +16,8 @@ FROM nginx:alpine
 # Copiar arquivos estáticos compilados do Vite
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Configuração Nginx com suporte a SPA routing (fallback para index.html) e APK Android
-RUN printf 'server {\n    listen 80;\n    server_name _;\n    include /etc/nginx/mime.types;\n    types {\n        application/vnd.android.package-archive apk;\n    }\n    location / {\n        root /usr/share/nginx/html;\n        index index.html index.htm;\n        try_files $uri $uri/ /index.html;\n    }\n}\n' > /etc/nginx/conf.d/default.conf
+# Configuração Nginx com suporte a SPA routing (fallback para index.html), APK Android e sem cache de index.html
+RUN printf 'server {\n    listen 80;\n    server_name _;\n    include /etc/nginx/mime.types;\n    types {\n        application/vnd.android.package-archive apk;\n    }\n    location = /index.html {\n        root /usr/share/nginx/html;\n        add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0";\n    }\n    location / {\n        root /usr/share/nginx/html;\n        index index.html index.htm;\n        try_files $uri $uri/ /index.html;\n    }\n}\n' > /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
