@@ -554,6 +554,11 @@ export function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-400">
             <div className="flex items-center gap-2">
+              <img
+                src="/logo.png"
+                alt="RealClima"
+                className="w-5 h-5 object-contain drop-shadow"
+              />
               <span className="font-bold text-white tracking-wide">
                 RealClima
               </span>

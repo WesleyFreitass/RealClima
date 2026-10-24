@@ -264,8 +264,13 @@ export const Navbar: React.FC<NavbarProps> = ({
       {/* Row 1: Brand & Actions */}
       <div className="living-glass rounded-2xl sm:rounded-3xl px-3.5 sm:px-6 py-2.5 sm:py-3 border border-white/20 shadow-2xl flex items-center justify-between gap-3 sm:gap-6">
         {/* Brand / Logo: RealClima ampliado e sem ícone ao lado (Item 8) */}
-        <div className="shrink-0 flex items-center">
-          <span className="font-black text-2xl sm:text-3xl tracking-tight bg-gradient-to-r from-white via-cyan-100 to-cyan-300 bg-clip-text text-transparent select-none cursor-pointer">
+        <div className="shrink-0 flex items-center gap-2.5 sm:gap-3 select-none cursor-pointer group">
+          <img
+            src="/logo.png"
+            alt="RealClima"
+            className="h-10 sm:h-12 w-auto object-contain drop-shadow-[0_0_16px_rgba(56,189,248,0.45)] group-hover:scale-105 transition-transform"
+          />
+          <span className="font-black text-2xl sm:text-3xl tracking-tight bg-gradient-to-r from-white via-cyan-100 to-cyan-300 bg-clip-text text-transparent">
             RealClima
           </span>
         </div>
