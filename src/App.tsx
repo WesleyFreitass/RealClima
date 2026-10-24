@@ -551,22 +551,37 @@ export function App() {
 
       {/* Footer with Attribution */}
       <footer className="mt-12 sm:mt-16 border-t border-white/10 living-glass backdrop-blur-2xl py-8 pb-24 md:pb-8 relative z-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-400">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-white tracking-wide">
-              RealClima
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-400">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-white tracking-wide">
+                RealClima
+              </span>
+              <span>— Previsões agregadas de alta precisão por consenso numérico</span>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-slate-300">
+              <span>Modelos: ECMWF IFS • NOAA GFS • DWD ICON • CMC GEM</span>
+              <span>•</span>
+              <span>APIs: Open-Meteo Multi-Model & Air Quality • wttr.in • OpenWeatherMap • OpenStreetMap / Nominatim</span>
+            </div>
+          </div>
+
+          <div className="pt-3 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
+            <a
+              href="https://realclima.pampo.tech"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sky-400 hover:text-cyan-300 transition-colors font-medium tracking-wide flex items-center gap-1.5"
+            >
+              <span>RealClima</span>
+              <span className="text-slate-500">•</span>
+              <span>realclima.pampo.tech</span>
+            </a>
+
+            <span className="text-[11px] text-slate-500">
+              Um produto pampo.tech
             </span>
-            <span>— Previsões agregadas de alta precisão por consenso numérico</span>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-slate-300">
-            <span>Modelos: ECMWF IFS • NOAA GFS • DWD ICON • CMC GEM</span>
-            <span>•</span>
-            <span>APIs: Open-Meteo Multi-Model & Air Quality • wttr.in • OpenWeatherMap • OpenStreetMap / Nominatim</span>
-          </div>
-
-          <div>
-            <span className="text-slate-400">RealClima © Céu Vivo • React & Tailwind</span>
           </div>
         </div>
       </footer>

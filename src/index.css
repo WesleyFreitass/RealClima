@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+@theme {
+  --radius-xs: 1px;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 4px;
+  --radius-xl: 6px;
+  --radius-2xl: 6px;
+  --radius-3xl: 8px;
+  --radius-4xl: 8px;
+  --radius-full: 4px;
+}
+
 @layer base {
   body {
     @apply text-slate-100 antialiased min-h-screen selection:bg-cyan-500 selection:text-black;
@@ -117,6 +129,12 @@
   filter: invert(100%) hue-rotate(180deg) brightness(85%) contrast(90%);
 }
 
+/* Radar smooth transition: eliminates frame-swap flickering and adds silky crossfade */
+.radar-smooth-tile {
+  transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  will-change: opacity;
+}
+
 /* Leaflet Zoom Control Styling */
 .leaflet-control-zoom {
   border: none !important;
@@ -183,4 +201,3 @@
   animation: rain-ripple-ring-expand infinite ease-out;
   will-change: transform, opacity;
 }
-

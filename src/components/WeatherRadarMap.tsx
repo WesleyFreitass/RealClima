@@ -34,8 +34,11 @@ export const WeatherRadarMap: React.FC<WeatherRadarMapProps> = ({
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
-  const radarLayerRef = useRef<L.TileLayer | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
+  const layersRef = useRef<L.TileLayer[]>([]);
+  const currentFrameIdxRef = useRef<number>(0);
+  const fadeTimeoutRef = useRef<any>(null);
+  const opacityRef = useRef<number>(0.75);
 
   const [activeLayerType, setActiveLayerType] = useState<'radar' | 'satellite'>('radar');
   const [radarFrames, setRadarFrames] = useState<RadarFrame[]>([]);
@@ -48,6 +51,10 @@ export const WeatherRadarMap: React.FC<WeatherRadarMapProps> = ({
   const [isLoadingRadar, setIsLoadingRadar] = useState<boolean>(true);
 
   const activeFrames = activeLayerType === 'radar' ? radarFrames : satelliteFrames;
+
+  useEffect(() => {
+    opacityRef.current = opacity;
+  }, [opacity]);
 
   // 1. Initialize Leaflet Map
   useEffect(() => {
@@ -138,7 +145,9 @@ export const WeatherRadarMap: React.FC<WeatherRadarMapProps> = ({
 
         const currentList = activeLayerType === 'radar' ? pastRadar : pastSat;
         if (currentList.length > 0) {
-          setCurrentFrameIdx(currentList.length - 1);
+          const lastIdx = currentList.length - 1;
+          setCurrentFrameIdx(lastIdx);
+          currentFrameIdxRef.current = lastIdx;
         }
         setIsLoadingRadar(false);
       })
@@ -152,58 +161,111 @@ export const WeatherRadarMap: React.FC<WeatherRadarMapProps> = ({
     };
   }, []);
 
-  // Switch frame index when active layer changes
-  useEffect(() => {
-    const list = activeLayerType === 'radar' ? radarFrames : satelliteFrames;
-    if (list.length > 0) {
-      setCurrentFrameIdx(list.length - 1);
-    }
-  }, [activeLayerType, radarFrames, satelliteFrames]);
+  // Smooth frame transition with cross-fade
+  const showFrame = useCallback(
+    (newIdx: number, instant = false) => {
+      const layers = layersRef.current;
+      if (!layers || layers.length === 0 || !layers[newIdx]) return;
 
-  // 4. Update Radar / Satellite Tile Layer
-  const updateWeatherTileLayer = useCallback(
-    (frameIdx: number) => {
-      if (!mapInstanceRef.current || activeFrames.length === 0) return;
+      const prevIdx = currentFrameIdxRef.current;
 
-      const frame = activeFrames[frameIdx];
-      if (!frame) return;
-
-      // Color palette 2 for radar, 0 for satellite
-      const colorOption = activeLayerType === 'radar' ? '2/1_1' : '0/0_0';
-      const tileUrl = `${host}${frame.path}/256/{z}/{x}/{y}/${colorOption}.png`;
-
-      if (radarLayerRef.current) {
-        mapInstanceRef.current.removeLayer(radarLayerRef.current);
+      if (fadeTimeoutRef.current) {
+        clearTimeout(fadeTimeoutRef.current);
+        fadeTimeoutRef.current = null;
       }
 
-      const newLayer = L.tileLayer(tileUrl, {
-        opacity: opacity,
-        zIndex: 50,
-        maxNativeZoom: 7,
-        maxZoom: 16,
-      }).addTo(mapInstanceRef.current);
+      if (instant) {
+        layers.forEach((l, i) => {
+          l.setOpacity(i === newIdx ? opacityRef.current : 0);
+        });
+      } else {
+        const nextLayer = layers[newIdx];
+        const prevLayer = layers[prevIdx];
 
-      radarLayerRef.current = newLayer;
+        // 1. Fade in the next frame smoothly
+        if (nextLayer) {
+          nextLayer.setOpacity(opacityRef.current);
+        }
+
+        // 2. Smoothly crossfade: keep previous frame visible for 200ms while next frame blends in
+        if (prevLayer && prevLayer !== nextLayer) {
+          fadeTimeoutRef.current = setTimeout(() => {
+            prevLayer.setOpacity(0);
+          }, 200);
+        }
+      }
+
+      currentFrameIdxRef.current = newIdx;
+      setCurrentFrameIdx(newIdx);
     },
-    [activeFrames, host, opacity, activeLayerType]
+    []
   );
 
+  // 4. Preload and maintain all TileLayers for activeFrames without removing/re-creating them
   useEffect(() => {
-    if (activeFrames.length > 0) {
-      updateWeatherTileLayer(currentFrameIdx);
-    }
-  }, [currentFrameIdx, opacity, updateWeatherTileLayer, activeFrames]);
+    if (!mapInstanceRef.current || activeFrames.length === 0) return;
 
-  // 5. Animation Loop
+    // Clear old layers
+    if (fadeTimeoutRef.current) clearTimeout(fadeTimeoutRef.current);
+    layersRef.current.forEach((layer) => {
+      mapInstanceRef.current?.removeLayer(layer);
+    });
+    layersRef.current = [];
+
+    const colorOption = activeLayerType === 'radar' ? '2/1_1' : '0/0_0';
+    const initialIdx = activeFrames.length - 1;
+    currentFrameIdxRef.current = initialIdx;
+    setCurrentFrameIdx(initialIdx);
+
+    const newLayers: L.TileLayer[] = [];
+
+    activeFrames.forEach((frame, idx) => {
+      const tileUrl = `${host}${frame.path}/256/{z}/{x}/{y}/${colorOption}.png`;
+      const isCurrent = idx === initialIdx;
+      const layer = L.tileLayer(tileUrl, {
+        opacity: isCurrent ? opacityRef.current : 0,
+        zIndex: 50 + idx,
+        maxNativeZoom: 7,
+        maxZoom: 16,
+        className: 'radar-smooth-tile',
+      });
+
+      layer.addTo(mapInstanceRef.current!);
+      newLayers.push(layer);
+    });
+
+    layersRef.current = newLayers;
+
+    return () => {
+      if (fadeTimeoutRef.current) clearTimeout(fadeTimeoutRef.current);
+      newLayers.forEach((layer) => {
+        mapInstanceRef.current?.removeLayer(layer);
+      });
+      layersRef.current = [];
+    };
+  }, [activeFrames, host, activeLayerType]);
+
+  // Update opacity dynamically when slider moves
+  const handleOpacityChange = (newVal: number) => {
+    setOpacity(newVal);
+    opacityRef.current = newVal;
+    const activeLayer = layersRef.current[currentFrameIdxRef.current];
+    if (activeLayer) {
+      activeLayer.setOpacity(newVal);
+    }
+  };
+
+  // 5. Smooth Animation Loop
   useEffect(() => {
     if (!isPlaying || activeFrames.length === 0) return;
 
     const interval = setInterval(() => {
-      setCurrentFrameIdx((prev) => (prev + 1) % activeFrames.length);
-    }, 700);
+      const nextIdx = (currentFrameIdxRef.current + 1) % activeFrames.length;
+      showFrame(nextIdx);
+    }, 600);
 
     return () => clearInterval(interval);
-  }, [isPlaying, activeFrames.length]);
+  }, [isPlaying, activeFrames.length, showFrame]);
 
   // Recenter and Zoom helpers
   const handleRecenter = () => {
@@ -398,7 +460,7 @@ export const WeatherRadarMap: React.FC<WeatherRadarMapProps> = ({
             onClick={() => {
               setIsPlaying(false);
               if (activeFrames.length > 0) {
-                setCurrentFrameIdx(activeFrames.length - 1);
+                showFrame(activeFrames.length - 1);
               }
             }}
             title="Voltar ao tempo real"
@@ -422,7 +484,8 @@ export const WeatherRadarMap: React.FC<WeatherRadarMapProps> = ({
             value={currentFrameIdx}
             onChange={(e) => {
               setIsPlaying(false);
-              setCurrentFrameIdx(Number(e.target.value));
+              const idx = Number(e.target.value);
+              showFrame(idx, true);
             }}
             disabled={activeFrames.length === 0}
             className="flex-1 accent-cyan-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
@@ -440,7 +503,7 @@ export const WeatherRadarMap: React.FC<WeatherRadarMapProps> = ({
             max={1.0}
             step={0.05}
             value={opacity}
-            onChange={(e) => setOpacity(parseFloat(e.target.value))}
+            onChange={(e) => handleOpacityChange(parseFloat(e.target.value))}
             className="w-16 sm:w-20 accent-cyan-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
           />
         </div>
