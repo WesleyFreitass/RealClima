@@ -1,7 +1,7 @@
 {
-  "version": "1.0.5",
-  "versionCode": 5,
-  "downloadUrl": "https://github.com/WesleyFreitass/RealClima/releases/latest/download/app-release.apk",
-  "releaseNotes": "Correção definitiva da tela branca na inicialização, inclusão de proteção de recuperação com ErrorBoundary e sanitização completa dos dados salvos em cache.",
-  "publishedAt": "2026-10-19"
+  "version": "1.0.6",
+  "versionCode": 6,
+  "downloadUrl": "https://realclima.pampo.tech/realclima.apk",
+  "releaseNotes": "Novo visual com bordas retas modernas, animação suave e sem piscamento no radar meteorológico e assinatura oficial pampo.tech.",
+  "publishedAt": "2026-10-24"
 }

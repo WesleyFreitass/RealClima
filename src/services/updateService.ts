@@ -21,8 +21,8 @@ export interface CheckUpdateResult {
   error?: string;
 }
 
-export const CURRENT_VERSION = '1.0.5';
-export const CURRENT_BUILD = 5;
+export const CURRENT_VERSION = '1.0.6';
+export const CURRENT_BUILD = 6;
 
 const VERSION_JSON_URL =
   'https://raw.githubusercontent.com/WesleyFreitass/RealClima/main/version.json';
